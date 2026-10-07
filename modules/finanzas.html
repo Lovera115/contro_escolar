@@ -1,0 +1,425 @@
+<div class="crud-header" id="finance-audit-heading">
+    <div class="crud-title">
+        <h2>Historial Financiero y Auditoría Generacional</h2>
+        <p>Consulta de saldos, cobros e historial completo por generación, grupo y alumno.</p>
+    </div>
+    <button class="btn-primary" id="finance-new-student-button" type="button">
+        <i class="fa-solid fa-plus"></i> Nuevo Alumno
+    </button>
+</div>
+
+<section class="finance-audit" id="finance-audit-view">
+    <div class="finance-audit-toolbar">
+        <label>Generación
+            <select id="audit-generation" onchange="renderFinancialAudit()">
+                <option value="todas">Todas las generaciones</option>
+                <option value="2021-2024">Gen 2021-2024</option>
+                <option value="2022-2025">Gen 2022-2025</option>
+                <option value="2023-2026">Gen 2023-2026</option>
+                <option value="2024-2027">Gen 2024-2027</option>
+                <option value="2025-2028">Gen 2025-2028</option>
+            </select>
+        </label>
+        <label>Carrera
+            <select id="audit-career" onchange="renderFinancialAudit()">
+                <option value="todas">Todas las carreras</option>
+                <option value="Especialidad en Responsabilidades Administrativas (ERA)">Especialidad en Responsabilidades Administrativas (ERA)</option>
+                <option value="Especialidad en Justicia Administrativa (EJA)">Especialidad en Justicia Administrativa (EJA)</option>
+                <option value="Especialidad en Derecho Administrativo (EDA)">Especialidad en Derecho Administrativo (EDA)</option>
+            </select>
+        </label>
+        <label>Grupo
+            <select id="audit-group" onchange="renderFinancialAudit()">
+                <option value="todos">Todos los grupos</option>
+                <option value="1º A">1º A</option><option value="2º B">2º B</option>
+                <option value="3º A">3º A</option><option value="6º C">6º C</option>
+            </select>
+        </label>
+        <label>Estado de pago
+            <select id="audit-status" onchange="renderFinancialAudit()">
+                <option value="todos">Todos los estados</option>
+                <option value="al_corriente">Al corriente</option>
+                <option value="adeudo">Con adeudo</option>
+                <option value="beca">Beca activa</option>
+                <option value="baja">Baja financiera</option>
+            </select>
+        </label>
+        <label class="finance-audit-search"><span>Buscar alumno, matrícula o folio</span>
+            <span class="finance-search-box"><i class="fa-solid fa-magnifying-glass"></i><input id="audit-search" type="search" placeholder="Buscar por nombre, matrícula o folio de recibo..." oninput="renderFinancialAudit()"></span>
+        </label>
+    </div>
+    <div class="finance-audit-actions">
+        <span id="audit-result-summary" role="status" aria-live="polite"></span>
+        <div>
+            <button class="teacher-button teacher-button-light" type="button" onclick="exportFinancialAuditCsv()"><i class="fa-solid fa-file-excel"></i> Exportar reporte global (Excel/CSV)</button>
+            <button class="teacher-button teacher-button-primary" type="button" onclick="exportGenerationalBalancePdf()"><i class="fa-solid fa-file-pdf"></i> Exportar balance generacional (PDF)</button>
+        </div>
+    </div>
+    <div class="finance-audit-metrics">
+        <article><span><i class="fa-solid fa-sack-dollar"></i> Total recaudado histórico</span><strong id="audit-total-collected">$0.00</strong><small>Pagos registrados</small></article>
+        <article class="finance-debt-metric"><span><i class="fa-solid fa-triangle-exclamation"></i> Cartera vencida / adeudo total</span><strong id="audit-total-debt">$0.00</strong><small>Saldos pendientes</small></article>
+        <article><span><i class="fa-solid fa-user-graduate"></i> Alumnos auditados</span><strong id="audit-student-count">0</strong><small id="audit-generation-caption">En los filtros seleccionados</small></article>
+        <article><span><i class="fa-solid fa-chart-pie"></i> Porcentaje de recaudación</span><strong id="audit-collection-rate">0%</strong><small>Cobrado de lo generado y vencido</small></article>
+    </div>
+    <div class="table-container finance-audit-table-wrap">
+        <table class="data-table finance-audit-table">
+            <thead><tr><th>Generación</th><th>Matrícula</th><th>Alumno</th><th>Carrera y grupo</th><th>Beca asignada</th><th>Cobrado total</th><th>Adeudo histórico</th><th>Estado general</th><th>Acciones</th></tr></thead>
+            <tbody id="financial-audit-body"></tbody>
+        </table>
+    </div>
+</section>
+
+<details class="legacy-finance-details" id="legacy-finance-view">
+    <summary><i class="fa-solid fa-sliders"></i> Administración de pagos y registro de alumnos</summary>
+    <div class="legacy-finance-actions">
+        <button class="btn-primary" id="legacy-new-student-button" type="button">
+            <i class="fa-solid fa-plus" aria-hidden="true"></i> Nuevo Alumno
+        </button>
+    </div>
+<!-- CARDS KPI DE CONTROL DE PAGOS -->
+<div class="kpi-grid">
+    <div class="kpi-card">
+        <div class="kpi-icon icon-info"><i class="fa-solid fa-graduation-cap"></i></div>
+        <div class="kpi-data">
+            <h3 class="kpi-value" id="kpi-total-alumnos">0</h3>
+            <span class="kpi-label">Total alumnos</span>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon icon-success"><i class="fa-solid fa-circle-check"></i></div>
+        <div class="kpi-data">
+            <h3 class="kpi-value" id="kpi-al-corriente">0</h3>
+            <span class="kpi-label">Al corriente</span>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon icon-warning"><i class="fa-regular fa-clock"></i></div>
+        <div class="kpi-data">
+            <h3 class="kpi-value" id="kpi-pendientes">0</h3>
+            <span class="kpi-label">Pendientes</span>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon icon-danger"><i class="fa-solid fa-circle-exclamation"></i></div>
+        <div class="kpi-data">
+            <h3 class="kpi-value" id="kpi-vencidos">0</h3>
+            <span class="kpi-label">Vencidos</span>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon icon-primary"><i class="fa-solid fa-sack-dollar"></i></div>
+        <div class="kpi-data">
+            <h3 class="kpi-value" id="kpi-saldo-total">$0.00</h3>
+            <span class="kpi-label">Saldo total por cobrar</span>
+        </div>
+    </div>
+</div>
+
+<!-- BARRA DE FILTROS POR PILLS Y BÚSQUEDA -->
+<div class="filter-pills-bar">
+    <button class="pill-btn active" id="pill-todos" onclick="filterByStatus('todos')">Todos (<span id="count-todos">0</span>)</button>
+    <button class="pill-btn" id="pill-corriente" onclick="filterByStatus('al_corriente')">Al corriente (<span id="count-corriente">0</span>)</button>
+    <button class="pill-btn" id="pill-adeudo" onclick="filterByStatus('adeudo')">Adeudo (<span id="count-adeudo">0</span>)</button>
+    <button class="pill-btn" id="pill-pendiente" onclick="filterByStatus('pendiente')">Pendiente (<span id="count-pendiente">0</span>)</button>
+    <button class="pill-btn" id="pill-vencido" onclick="filterByStatus('vencido')">Vencido (<span id="count-vencido">0</span>)</button>
+    <button class="pill-btn" id="pill-baja" onclick="filterByStatus('baja')">Baja (<span id="count-baja">0</span>)</button>
+</div>
+
+<div class="table-toolbar">
+    <div class="search-box">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" id="search-student" placeholder="Buscar por nombre o matrícula..." oninput="filterStudentsTable()">
+    </div>
+
+    <div class="filter-group">
+        <select id="filter-cuatrimestre" onchange="filterStudentsTable()">
+            <option value="todos">Todos los cuatrimestres</option>
+            <option value="2026-1">2026-1</option>
+            <option value="2026-2">2026-2</option>
+            <option value="2027-1">2027-1</option>
+            <option value="2027-2">2027-2</option>
+        </select>
+    </div>
+    
+    <div class="filter-group">
+        <select id="filter-carrera" onchange="filterStudentsTable()">
+            <option value="todas">Todas las Carreras</option>
+            <option value="Especialidad en Responsabilidades Administrativas (ERA)">Especialidad en Responsabilidades Administrativas (ERA)</option>
+            <option value="Especialidad en Justicia Administrativa (EJA)">Especialidad en Justicia Administrativa (EJA)</option>
+            <option value="Especialidad en Derecho Administrativo (EDA)">Especialidad en Derecho Administrativo (EDA)</option>
+        </select>
+    </div>
+</div>
+
+<!-- TABLA PRINCIPAL DE ALUMNOS Y SALDOS -->
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>MATRÍCULA</th>
+                <th>ALUMNO</th>
+                <th>CARRERA</th>
+                <th>CUATRI.</th>
+                <th>ESTADO</th>
+                <th>SALDO PENDIENTE</th>
+                <th>PAGOS</th>
+                <th>ACCIONES</th>
+            </tr>
+        </thead>
+        <tbody id="students-table-body">
+            <!-- Renderizado dinámico desde finanzas.js -->
+        </tbody>
+    </table>
+</div>
+
+    <!-- El módulo de cobros conserva los controles existentes de edición y registro. -->
+</details>
+
+<!-- MODAL 1: REGISTRAR / EDITAR ALUMNO Y CUOTAS (CON BECA) -->
+<div class="modal-overlay" id="student-modal">
+    <div class="modal-content modal-large">
+        <div class="modal-header">
+            <h3 id="student-modal-title">Registrar Nuevo Alumno</h3>
+            <button class="close-btn" onclick="closeStudentModal()"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body">
+            <form id="student-form" onsubmit="saveStudentForm(event)">
+                <input type="hidden" id="st-id">
+                
+                <h4 class="form-section-title"><i class="fa-solid fa-id-card"></i> Datos Personales y Académicos</h4>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Matrícula</label>
+                        <input type="text" id="st-matricula" required placeholder="Ej. 2024-0312">
+                    </div>
+                    <div class="form-group">
+                        <label>Nombre Completo</label>
+                        <input type="text" id="st-nombre" required placeholder="Ej. Ana García López">
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Correo Electrónico</label>
+                        <input type="email" id="st-email" required placeholder="alumno@institucion.edu">
+                    </div>
+                    <div class="form-group">
+                        <label>Teléfono</label>
+                        <input type="text" id="st-telefono" placeholder="Ej. 722 123 4567">
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Carrera</label>
+                        <select id="st-carrera" required>
+                            <option value="Especialidad en Responsabilidades Administrativas (ERA)">Especialidad en Responsabilidades Administrativas (ERA)</option>
+                            <option value="Especialidad en Justicia Administrativa (EJA)">Especialidad en Justicia Administrativa (EJA)</option>
+                            <option value="Especialidad en Derecho Administrativo (EDA)">Especialidad en Derecho Administrativo (EDA)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Cuatrimestre</label>
+                        <select id="st-cuatrimestre" required>
+                            <option value="2026-1">2026-1</option>
+                            <option value="2026-2">2026-2</option>
+                            <option value="2027-1">2027-1</option>
+                            <option value="2027-2">2027-2</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="st-estado">Estado de pago</label>
+                        <select id="st-estado" required>
+                            <option value="adeudo">Adeudo</option>
+                            <option value="pendiente">Pendiente</option>
+                            <option value="al_corriente">Al corriente</option>
+                            <option value="vencido">Vencido</option>
+                            <option value="convenio">Convenio / prórroga</option>
+                            <option value="baja">Baja</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="st-saldo-pendiente">Saldo pendiente (MXN)</label>
+                        <input type="number" id="st-saldo-pendiente" min="0" step="0.01" value="0" placeholder="0.00" required>
+                    </div>
+                </div>
+
+                <h4 class="form-section-title"><i class="fa-solid fa-calculator"></i> Beca y Estructura Financiera</h4>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Categoría / Tipo de Beca</label>
+                        <select id="st-categoria-beca">
+                            <option value="Ninguna">Sin Beca (0%)</option>
+                            <option value="Excelencia Académica">Excelencia Académica</option>
+                            <option value="Apoyo Socioeconómico">Apoyo Socioeconómico</option>
+                            <option value="Convenio Institucional">Convenio Institucional</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>% de Beca Otorgado</label>
+                        <input type="number" id="st-porcentaje-beca" min="0" max="100" value="0" oninput="calculateRealFees()">
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Cuota Base Colegiatura Mensual ($)</label>
+                        <input type="number" id="st-cuota-base-col" value="3200" step="0.01" oninput="calculateRealFees()">
+                    </div>
+                    <div class="form-group">
+                        <label>Cuota Real Colegiatura ($)</label>
+                        <input type="number" id="st-cuota-real-col" readonly class="input-readonly">
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeStudentModal()">Cancelar</button>
+                    <button type="submit" class="btn-primary">Guardar Alumno</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL 2: REGISTRAR PAGO A UN ALUMNO -->
+<div class="modal-overlay" id="pay-modal" role="dialog" aria-modal="true" aria-labelledby="pay-modal-title">
+    <div class="modal-content finance-payment-modal">
+        <div class="modal-header">
+            <h3 id="pay-modal-title"><i class="fa-solid fa-credit-card"></i> Registrar Pago</h3>
+            <button class="close-btn" type="button" onclick="closePayModal()" aria-label="Cerrar ventana de registro de pago"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body">
+            <form id="pay-form" onsubmit="savePaymentForm(event)">
+                <input type="hidden" id="pay-student-id">
+                
+                <div class="form-group">
+                    <label>Alumno</label>
+                    <input type="text" id="pay-student-name" readonly class="input-readonly">
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Folio de Pago</label>
+                        <input type="text" id="pay-folio" required placeholder="Ej. FAC-2026-01452">
+                    </div>
+                    <div class="form-group">
+                        <label>Cuatrimestre</label>
+                        <select id="pay-cuatrimestre" required>
+                            <option value="2026-1">2026-1</option>
+                            <option value="2026-2">2026-2</option>
+                            <option value="2027-1">2027-1</option>
+                            <option value="2027-2">2027-2</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Concepto a Pagar</label>
+                        <select id="pay-concepto" required onchange="autoFillPayAmount()">
+                            <option value="Inscripción">Inscripción Cuatrimestral</option>
+                            <option value="Septiembre">Colegiatura Septiembre</option>
+                            <option value="Octubre">Colegiatura Octubre</option>
+                            <option value="Noviembre">Colegiatura Noviembre</option>
+                            <option value="Diciembre">Colegiatura Diciembre</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Monto a Cobrar ($)</label>
+                        <input type="number" id="pay-monto" step="0.01" required>
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Método de Pago</label>
+                        <select id="pay-metodo" required>
+                            <option value="Transferencia">Transferencia SPEI</option>
+                            <option value="Tarjeta">Tarjeta de Débito/Crédito</option>
+                            <option value="Efectivo">Efectivo en Caja</option>
+                            <option value="Depósito">Depósito Bancario</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Comprobante / No. Referencia</label>
+                        <input type="text" id="pay-comprobante" required placeholder="Ej. BBVA-TRF-88321">
+                    </div>
+                </div>
+
+                <div class="form-group finance-receipt-upload-field">
+                    <label for="pay-receipt-pdf">Comprobante PDF (opcional)</label>
+                    <input type="file" id="pay-receipt-pdf" accept=".pdf,application/pdf" onchange="updatePaymentReceiptFileName(this)">
+                    <small id="pay-receipt-pdf-status">Adjunta el comprobante digital en formato PDF (máximo 5 MB).</small>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closePayModal()">Cancelar</button>
+                    <button type="submit" class="btn-primary"><i class="fa-solid fa-check"></i> Confirmar Pago</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL 3: VISTA DETALLE DE ALUMNO Y SU HISTORIAL (IMAGEN 5) -->
+<div class="modal-overlay" id="detail-modal" role="dialog" aria-modal="true" aria-labelledby="dt-nombre">
+    <div class="modal-content modal-extra-large finance-detail-modal">
+        <div class="modal-header">
+            <div class="breadcrumb">Control de Pagos &rsaquo; <span id="dt-breadcrumb-name">Alumno</span></div>
+            <button class="close-btn" type="button" onclick="closeDetailModal()" aria-label="Cerrar historial financiero"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body">
+            <!-- Ficha / Header del Alumno -->
+            <div class="student-profile-card">
+                <div class="profile-left">
+                    <div class="avatar-circle" id="dt-avatar">AG</div>
+                    <div class="profile-details">
+                        <h3 id="dt-nombre">Ana García López</h3>
+                        <p id="dt-subinfo">2024-0312 · Generación · Carrera · Grupo</p>
+                        <p class="finance-detail-scholarship" id="dt-scholarship"></p>
+                    </div>
+                </div>
+
+                <div class="profile-right">
+                    <div class="balance-box">
+                        <span class="lbl">Total pagado / adeudo histórico</span>
+                        <h3 class="val" id="dt-saldo">$0.00</h3>
+                        <small id="dt-debt-summary"></small>
+                    </div>
+                <div class="form-group" style="margin: 12px 0 8px; min-width: 180px;">
+                    <label style="font-size: 0.75rem; color: var(--text-secondary); display: block; margin-bottom: 4px;">Estado de cuenta</label>
+                    <select id="dt-estado-cuenta" style="width: 100%;">
+                        <option value="adeudo">Adeudo</option>
+                        <option value="pendiente">Pendiente</option>
+                        <option value="al_corriente">Al corriente</option>
+                        <option value="vencido">Vencido</option>
+                        <option value="baja">Baja</option>
+                    </select>
+                </div>
+                <span class="badge" id="dt-badge-status">Al corriente</span>
+                    
+                <div class="profile-actions">
+                    <button class="btn-secondary btn-sm" id="btn-edit-from-detail"><i class="fa-solid fa-pen"></i> Editar</button>
+                    <button class="btn-primary btn-sm" id="btn-pay-from-detail"><i class="fa-solid fa-credit-card"></i> + Pago</button>
+                    <button class="btn-danger btn-sm" id="btn-baja-from-detail"><i class="fa-solid fa-user-minus"></i> Registrar Baja</button>
+                    <button class="btn-secondary btn-sm" id="btn-download-pdf"><i class="fa-solid fa-print"></i> Imprimir estado oficial (PDF)</button>
+                </div>
+                </div>
+            </div>
+
+            <div class="history-section-title"><h4>Trayectoria financiera por cuatrimestre</h4></div>
+            <div id="finance-term-timeline" class="finance-term-timeline"></div>
+            <div class="history-footer finance-history-totals">
+                <span>Total pagado: <strong id="dt-total-pagado">$0.00</strong></span>
+                <span>Adeudo histórico: <strong id="dt-total-adeudo">$0.00</strong></span>
+            </div>
+        </div>
+    </div>
+</div>

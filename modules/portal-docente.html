@@ -1,0 +1,105 @@
+<section class="teacher-portal">
+    <header class="teacher-heading">
+        <div>
+            <p class="teacher-eyebrow">CONTROL ESCOLAR · DOCENCIA</p>
+            <h2 id="teacher-page-heading">Mis Grupos y Horario</h2>
+            <p>Dr. Roberto Sánchez · Consulta y administra tus grupos del cuatrimestre.</p>
+        </div>
+        <label class="teacher-period-field" for="teacher-period">Cuatrimestre
+            <select id="teacher-period" onchange="changeTeacherPeriod(this.value)">
+                <option value="2026-1">2026-1</option>
+                <option value="2025-3">2025-3</option>
+            </select>
+        </label>
+    </header>
+
+    <nav class="teacher-tabs" role="tablist" aria-label="Módulos docentes">
+        <button class="teacher-tab active" type="button" role="tab" aria-selected="true" aria-controls="teacher-panel-groups" onclick="switchTeacherTab('groups', this)"><i class="fa-regular fa-calendar-days"></i> Mis Grupos y Horario</button>
+        <button class="teacher-tab" type="button" role="tab" aria-selected="false" aria-controls="teacher-panel-attendance" onclick="switchTeacherTab('attendance', this)"><i class="fa-solid fa-clipboard-check"></i> Pase de Asistencia</button>
+        <button class="teacher-tab" type="button" role="tab" aria-selected="false" aria-controls="teacher-panel-grades" onclick="switchTeacherTab('grades', this)"><i class="fa-solid fa-file-signature"></i> Cierre de Actas &amp; Parciales</button>
+    </nav>
+
+    <section id="teacher-panel-groups" class="teacher-panel">
+        <div class="teacher-section-title"><div><h3>Grupos asignados</h3><p>Materias y horarios a tu cargo en el cuatrimestre seleccionado.</p></div></div>
+        <div id="teacher-group-cards" class="teacher-group-grid"></div>
+        <section class="teacher-card teacher-schedule-card">
+            <div class="teacher-section-title"><div><h3>Horario semanal</h3><p>Lunes a viernes · 07:00 a 21:00 hrs.</p></div></div>
+            <div class="teacher-table-scroll">
+                <table class="teacher-schedule">
+                    <thead><tr><th>Hora</th><th>Lunes</th><th>Martes</th><th>Miércoles</th><th>Jueves</th><th>Viernes</th></tr></thead>
+                    <tbody id="teacher-schedule-body"></tbody>
+                </table>
+            </div>
+        </section>
+    </section>
+
+    <section id="teacher-panel-attendance" class="teacher-panel" hidden>
+        <div class="teacher-toolbar">
+            <label class="teacher-control" for="attendance-group">Grupo / Materia
+                <select id="attendance-group" onchange="renderTeacherAttendance()"></select>
+            </label>
+            <label class="teacher-control" for="attendance-date">Fecha
+                <span class="teacher-date-control"><input id="attendance-date" type="date" onchange="renderTeacherAttendance()"><button class="teacher-button teacher-button-light" type="button" onclick="setAttendanceToday()">Hoy</button></span>
+            </label>
+            <div class="teacher-toolbar-actions">
+                <button class="teacher-button teacher-button-light" type="button" onclick="exportAttendanceCsv()"><i class="fa-solid fa-file-excel"></i> Descargar lista (Excel/CSV)</button>
+                <button class="teacher-button teacher-button-light" type="button" onclick="exportAttendancePdf()"><i class="fa-solid fa-file-pdf"></i> Reporte oficial (PDF)</button>
+                <button class="teacher-button teacher-button-primary" type="button" onclick="markAllPresent()"><i class="fa-solid fa-bolt"></i> Marcar todos presentes</button>
+            </div>
+        </div>
+        <section class="teacher-card">
+            <div class="teacher-section-title"><div><h3>Lista de asistencia</h3><p>Registra el estado de cada alumno para la fecha seleccionada.</p></div></div>
+            <div class="teacher-table-scroll">
+                <table class="teacher-data-table attendance-table">
+                    <thead><tr><th>No.</th><th>Matrícula</th><th>Nombre del alumno</th><th>Estatus</th><th>Asistencia del cuatrimestre</th><th>Observaciones</th></tr></thead>
+                    <tbody id="teacher-attendance-body"></tbody>
+                </table>
+            </div>
+            <footer id="attendance-summary" class="teacher-summary"></footer>
+        </section>
+    </section>
+
+    <section id="teacher-panel-grades" class="teacher-panel" hidden>
+        <div class="teacher-toolbar">
+            <label class="teacher-control" for="grades-group">Grupo / Materia
+                <select id="grades-group" onchange="renderTeacherGrades()"></select>
+            </label>
+            <p class="teacher-grade-note"><i class="fa-solid fa-circle-info"></i> Captura la calificación de cada parcial (0 a 10). El promedio general se calcula con los parciales capturados.</p>
+        </div>
+        <section class="teacher-card teacher-bulk-tools">
+            <div><h3>Captura masiva de calificaciones</h3><p>CSV: matricula,parcial1,parcial2,parcial3. Las notas deben estar entre 0 y 10; deja vacío un parcial sin calificación.</p></div>
+            <label class="teacher-button teacher-button-light" for="teacher-grade-csv"><i class="fa-solid fa-file-import"></i> Importar calificaciones CSV</label>
+            <input id="teacher-grade-csv" type="file" accept=".csv,text/csv" onchange="importTeacherGradesCsv(event)" hidden>
+            <small id="teacher-bulk-feedback" role="status" aria-live="polite"></small>
+        </section>
+        <div id="teacher-grade-metrics" class="teacher-grade-metrics"></div>
+        <section class="teacher-card">
+            <div class="teacher-section-title"><div><h3>Matriz de calificaciones del cuatrimestre</h3><p>Actualiza las calificaciones parciales; el promedio general se recalcula automáticamente.</p></div></div>
+            <div class="teacher-table-scroll">
+                <table class="teacher-data-table final-grade-table">
+                    <thead><tr><th>No.</th><th>Matrícula</th><th>Nombre del alumno</th><th>Parcial 1<br><small>Calificación</small></th><th>Parcial 2<br><small>Calificación</small></th><th>Parcial 3<br><small>Calificación</small></th><th>Promedio general</th><th>Estatus final</th></tr></thead>
+                    <tbody id="teacher-grades-body"></tbody>
+                </table>
+            </div>
+            <footer class="teacher-sign-footer">
+                <span id="teacher-save-feedback" role="status" aria-live="polite"></span>
+                <button class="teacher-button teacher-button-light" type="button" onclick="saveTeacherGradeDraft()"><i class="fa-solid fa-floppy-disk"></i> Guardar borrador</button>
+                <button class="teacher-button teacher-button-primary" type="button" onclick="openActaSignature()"><i class="fa-solid fa-lock"></i> Firmar digitalmente y enviar actas a Control Escolar</button>
+            </footer>
+        </section>
+    </section>
+
+    <dialog id="acta-signature-dialog" class="teacher-sign-dialog">
+        <form method="dialog" onsubmit="signTeacherActas(event)">
+            <h3>Confirmar cierre de actas</h3>
+            <p>Ingresa tu contraseña o NIP de firma. En esta demostración la validación y el envío a Control Escolar son simulados.</p>
+            <label for="acta-signature-pin">Contraseña / NIP</label>
+            <input id="acta-signature-pin" type="password" required autocomplete="current-password">
+            <div class="teacher-dialog-actions">
+                <button class="teacher-button teacher-button-light" type="button" onclick="closeActaSignature()">Cancelar</button>
+                <button class="teacher-button teacher-button-primary" type="submit">Confirmar firma</button>
+            </div>
+        </form>
+    </dialog>
+    <p id="teacher-feedback" class="teacher-feedback" role="status" aria-live="polite"></p>
+</section>

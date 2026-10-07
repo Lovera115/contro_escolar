@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Control Escolar</title>
+    <!-- CSS Unificado -->
+    <link rel="stylesheet" href="css/styles.css?v=20261007-modal-refresh-2">
+    <!-- FontAwesome Iconos (CDN Oficial) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Fuente Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <div class="dashboard-layout">
+        <!-- NAVEGACIÓN LATERAL -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-logo">
+                <i class="fa-solid fa-graduation-cap"></i>
+                <span>CEPTRI</span>
+            </div>
+
+            <div class="user-profile">
+                <img src="https://ui-avatars.com/api/?name=Admin+Usuario&background=0D8ABC&color=fff" id="user-avatar" alt="Avatar">
+                <div class="user-info">
+                    <h3 id="user-name">Administrador</h3>
+                    <p id="user-role">SuperUsuario</p>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <ul id="dynamic-menu">
+                    <!-- Menú dinámico inyectado por app.js -->
+                </ul>
+            </nav>
+
+            <div class="sidebar-footer">
+                <a href="index.html" class="logout-btn">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                    <span>Cerrar Sesión</span>
+                </a>
+            </div>
+        </aside>
+
+        <!-- ÁREA PRINCIPAL -->
+        <div class="main-wrapper">
+            <header class="header">
+                <div class="header-left">
+                    <button id="toggle-sidebar" class="menu-btn" type="button" aria-expanded="false" aria-label="Abrir navegación"><i class="fa-solid fa-bars"></i></button>
+                    <h2 class="page-title" id="page-title">Cargando...</h2>
+                </div>
+                
+                <div class="header-right">
+                    <select id="role-tester" onchange="changeRole(this.value)">
+                        <option value="admin">Vista: Administrador</option>
+                        <option value="finanzas">Vista: Finanzas</option>
+                        <option value="control_escolar">Vista: Control Escolar</option>
+                        <option value="docente">Vista: Docente</option>
+                        <option value="alumno">Vista: Alumno</option>
+                    </select>
+
+                    <button class="notification-btn">
+                        <i class="fa-regular fa-bell"></i>
+                        <span class="notification-badge">3</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- VISTAS DINÁMICAS -->
+            <main class="content-area" id="main-content">
+                <!-- Se inyectamodules/admin-roles.html o modules/finanzas.html -->
+            </main>
+        </div>
+    </div>
+
+    <!-- SCRIPTS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.0/jspdf.umd.min.js"></script>
+    <script src="js/admin-roles.js?v=20261007-modal-refresh-2"></script>
+    <script src="js/asignacion-academica.js"></script>
+    <script src="js/portal-alumno.js"></script>
+    <script src="js/portal-docente.js"></script>
+    <script src="js/finanzas.js?v=20261007-modal-refresh-2"></script>
+    <script src="js/app.js?v=20261007-modal-refresh-2"></script>
+</body>
+</html>

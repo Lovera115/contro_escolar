@@ -1,0 +1,50 @@
+<section class="portal-review-page">
+    <header class="portal-page-heading">
+        <div><h2>Revisión de Expedientes</h2><p>Consulta documentos y valida la documentación de inscripción.</p></div>
+        <label class="portal-review-student-filter" for="review-student-select">Alumno
+            <select id="review-student-select" onchange="renderDocumentReview()"></select>
+        </label>
+    </header>
+    <div class="portal-section-heading portal-review-heading">
+        <div><h3>Expediente Digital</h3><p id="review-student-summary">Selecciona un alumno para revisar sus documentos.</p></div>
+        <span id="review-completion-status" class="document-status-badge status-review">Inscripción incompleta</span>
+    </div>
+    <section class="portal-form-card direct-document-upload">
+        <div>
+            <h3>Carga Directa de Documentación</h3>
+            <p>Los archivos se agregan al expediente del alumno seleccionado.</p>
+        </div>
+        <label for="direct-document-type">Tipo de documento</label>
+        <select id="direct-document-type"></select>
+        <div id="direct-document-dropzone" class="document-dropzone" tabindex="0" role="button" aria-label="Arrastra documentos aquí o examina archivos">
+            <i class="fa-solid fa-cloud-arrow-up" aria-hidden="true"></i>
+            <strong>Arrastra y suelta el documento aquí</strong>
+            <span>PDF, JPG o PNG · Máximo 5 MB</span>
+            <label class="document-upload-button" for="direct-document-file">Examinar archivos</label>
+            <input class="document-file-input" type="file" id="direct-document-file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" onchange="handleDirectDocumentUpload(event)">
+        </div>
+    </section>
+    <div class="document-review-grid">
+        <section class="portal-form-card review-document-list-card">
+            <h3>Documentos del alumno</h3>
+            <div id="review-document-list"></div>
+        </section>
+        <section class="portal-form-card document-preview-card">
+            <h3>Previsualizador</h3>
+            <div id="document-preview" class="document-preview-empty">Selecciona un archivo para previsualizarlo.</div>
+            <div id="document-review-actions" class="document-review-actions" hidden>
+                <button type="button" class="document-approve-button" onclick="reviewSelectedDocument('aprobado')"><i class="fa-solid fa-check"></i> Aprobar Documento</button>
+                <button type="button" class="document-reject-button" onclick="showDocumentRejectionForm()"><i class="fa-solid fa-xmark"></i> Rechazar Documento</button>
+            </div>
+            <div id="document-rejection-form" class="document-rejection-form" hidden>
+                <label for="document-rejection-reason">Motivo del rechazo y correcciones necesarias</label>
+                <textarea id="document-rejection-reason" rows="3" maxlength="500" required placeholder="Describe qué debe corregir el alumno..."></textarea>
+                <div>
+                    <button type="button" class="btn-secondary" onclick="cancelDocumentRejection()">Cancelar</button>
+                    <button type="button" class="document-reject-button" onclick="confirmDocumentRejection()">Confirmar rechazo</button>
+                </div>
+            </div>
+        </section>
+    </div>
+    <p id="review-feedback" class="portal-feedback" role="status" aria-live="polite"></p>
+</section>

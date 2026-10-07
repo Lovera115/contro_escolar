@@ -1,0 +1,138 @@
+<section class="rbac-page">
+    <header class="rbac-header">
+        <div>
+            <h2>Administración de Usuarios y Permisos de Acceso</h2>
+            <p>Asigna roles, gestiona cuentas y configura privilegios de acceso a Finanzas, Control Escolar y portales.</p>
+        </div>
+        <div class="rbac-header-actions">
+            <button class="rbac-button rbac-button-primary" type="button" data-action="create-user"><i class="fa-solid fa-plus"></i> Crear Nuevo Usuario</button>
+            <button class="rbac-button rbac-button-outline" type="button" onclick="switchUserAdminTab('matrix')"><i class="fa-solid fa-shield-halved"></i> Configurar Matriz de Permisos</button>
+        </div>
+    </header>
+
+    <section class="rbac-metrics" aria-label="Resumen de cuentas">
+        <article><span class="rbac-metric-icon metric-total"><i class="fa-solid fa-users"></i></span><div><strong id="metric-total-accounts">0</strong><small>Total cuentas registradas</small></div></article>
+        <article><span class="rbac-metric-icon metric-staff"><i class="fa-solid fa-user-shield"></i></span><div><strong id="metric-admin-staff">0</strong><small>Cuentas administrativas / staff</small></div></article>
+        <article><span class="rbac-metric-icon metric-finance"><i class="fa-solid fa-wallet"></i></span><div><strong id="metric-finance-access">0</strong><small>Acceso a Finanzas</small></div></article>
+        <article><span class="rbac-metric-icon metric-school"><i class="fa-solid fa-building-columns"></i></span><div><strong id="metric-school-access">0</strong><small>Acceso a Control Escolar</small></div></article>
+    </section>
+
+    <div class="rbac-tabs" role="tablist" aria-label="Administración de usuarios y permisos">
+        <button class="rbac-tab active" id="rbac-tab-directory" role="tab" aria-selected="true" aria-controls="rbac-panel-directory" type="button" onclick="switchUserAdminTab('directory')">Directorio General y CRUD de Usuarios</button>
+        <button class="rbac-tab" id="rbac-tab-matrix" role="tab" aria-selected="false" aria-controls="rbac-panel-matrix" type="button" onclick="switchUserAdminTab('matrix')">Matriz de Roles y Accesos a Módulos</button>
+    </div>
+
+    <section class="rbac-panel" id="rbac-panel-directory" role="tabpanel" aria-labelledby="rbac-tab-directory">
+        <div class="rbac-toolbar">
+            <label class="rbac-search" for="user-search"><i class="fa-solid fa-magnifying-glass"></i><input id="user-search" type="search" placeholder="Buscar por nombre, correo, usuario o RFC..." oninput="filterUserTable()"></label>
+            <label class="sr-only" for="user-filter-role">Filtrar por rol</label>
+            <select id="user-filter-role" onchange="filterUserTable()">
+                <option value="todos">Todos los roles</option>
+                <option value="admin">Administrador</option>
+                <option value="control_escolar">Control Escolar</option>
+                <option value="finanzas">Finanzas</option>
+                <option value="docente">Docente</option>
+                <option value="alumno">Alumno</option>
+            </select>
+            <label class="sr-only" for="user-filter-status">Filtrar por estado</label>
+            <select id="user-filter-status" onchange="filterUserTable()">
+                <option value="todos">Todos los estados</option>
+                <option value="activo">Activos</option>
+                <option value="inactivo">Inactivos</option>
+            </select>
+            <label class="sr-only" for="user-filter-period">Filtrar por cuatrimestre de alta</label>
+            <select id="user-filter-period" onchange="filterUserTable()">
+                <option value="todos">Todos los cuatrimestres</option>
+                <option value="2026-1">2026-1</option>
+                <option value="2025-3">2025-3</option>
+            </select>
+            <button class="rbac-button rbac-button-export" type="button" onclick="exportUsersPdf('docente')"><i class="fa-solid fa-file-pdf"></i> Docentes PDF</button>
+            <button class="rbac-button rbac-button-export" type="button" onclick="exportUsersPdf('alumno')"><i class="fa-solid fa-file-pdf"></i> Alumnos PDF</button>
+            <button class="rbac-button rbac-button-export" type="button" onclick="exportUsersPdf('actual')"><i class="fa-solid fa-file-pdf"></i> Vista actual PDF</button>
+            <button class="rbac-button rbac-button-primary" type="button" data-action="create-user"><i class="fa-solid fa-plus"></i> Crear usuario</button>
+        </div>
+        <div class="rbac-table-wrap">
+            <table class="rbac-table">
+                <thead><tr><th>Usuario / nombre</th><th>Rol asignado</th><th>Módulos permitidos</th><th>Último acceso</th><th>Estado</th><th>Acciones</th></tr></thead>
+                <tbody id="user-table-body"></tbody>
+            </table>
+        </div>
+        <footer class="rbac-table-footer"><span id="user-table-summary" aria-live="polite"></span><nav id="user-pagination" class="user-pagination" aria-label="Paginación de usuarios"></nav></footer>
+    </section>
+
+    <section class="rbac-panel" id="rbac-panel-matrix" role="tabpanel" aria-labelledby="rbac-tab-matrix" hidden>
+        <div class="rbac-matrix-heading">
+            <div><h3>Matriz de Roles y Accesos</h3><p>Define el nivel máximo permitido para cada rol y módulo.</p></div>
+            <div class="rbac-matrix-legend"><span>Sin acceso</span><span>Lectura</span><span>Escritura</span><span>Control total</span></div>
+        </div>
+        <div class="rbac-table-wrap">
+            <table class="rbac-matrix">
+                <thead><tr><th>Módulo / Privilegios</th><th>Administrador</th><th>Control Escolar</th><th>Finanzas</th><th>Docente</th><th>Alumno</th></tr></thead>
+                <tbody id="rbac-matrix-body"></tbody>
+            </table>
+        </div>
+        <p class="rbac-feedback" id="rbac-matrix-feedback" role="status" aria-live="polite">Los permisos son una simulación local; requieren backend para aplicarse como seguridad real.</p>
+    </section>
+</section>
+
+<div class="modal-overlay" id="user-modal" role="dialog" aria-modal="true" aria-labelledby="user-modal-title">
+    <div class="modal-content user-modal-content rbac-user-modal">
+        <div class="modal-header">
+            <div><h3 id="user-modal-title">Crear Nuevo Usuario</h3><p class="modal-subtitle">Configura los datos de la cuenta y sus permisos.</p></div>
+            <button class="close-btn" type="button" onclick="closeUserModal()" aria-label="Cerrar"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body">
+            <form id="user-form" onsubmit="handleUserSubmit(event)">
+                <input type="hidden" id="user-id">
+                <h4 class="rbac-form-section">Datos de la Cuenta</h4>
+                <div class="form-grid">
+                    <div class="form-group"><label for="user-full-name">Nombre completo *</label><input id="user-full-name" type="text" required maxlength="120" placeholder="Nombre y apellidos"></div>
+                    <div class="form-group"><label for="user-email">Correo institucional *</label><input id="user-email" type="email" required maxlength="160" placeholder="nombre@institucion.edu"></div>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group"><label for="user-username">Usuario *</label><input id="user-username" type="text" required maxlength="40" autocomplete="username" placeholder="usuario.institucional"></div>
+                    <div class="form-group"><label for="user-phone">Teléfono</label><input id="user-phone" type="tel" maxlength="30" placeholder="722 123 4567"></div>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group"><label for="user-password">Contraseña temporal</label><input id="user-password" type="password" minlength="8" autocomplete="new-password" placeholder="Vacío para autogenerar"></div>
+                    <div class="form-group"><label for="user-registration" id="user-registration-label">Matrícula / RFC</label><input id="user-registration" type="text" maxlength="30" placeholder="Matrícula o RFC"></div>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group"><label for="rbac-user-role">Rol principal *</label>
+                        <select id="rbac-user-role" required onchange="onUserRoleChange()">
+                            <option value="admin">Administrador</option><option value="control_escolar">Control Escolar</option><option value="finanzas">Finanzas</option><option value="docente">Docente</option><option value="alumno">Alumno</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label for="user-status">Estado de cuenta</label><select id="user-status"><option value="activo">Activo</option><option value="inactivo">Inactivo / suspendido</option></select></div>
+                </div>
+                <div class="form-grid" id="user-academic-fields">
+                    <div class="form-group"><label for="user-career">Carrera / especialidad</label>
+                        <select id="user-career">
+                            <option value="Especialidad en Responsabilidades Administrativas (ERA)">Especialidad en Responsabilidades Administrativas (ERA)</option>
+                            <option value="Especialidad en Justicia Administrativa (EJA)">Especialidad en Justicia Administrativa (EJA)</option>
+                            <option value="Especialidad en Derecho Administrativo (EDA)">Especialidad en Derecho Administrativo (EDA)</option>
+                            <option value="Área Docente">Área Docente</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label for="user-period">Cuatrimestre de alta</label><select id="user-period"><option value="2026-1">2026-1</option><option value="2025-3">2025-3</option></select></div>
+                </div>
+                <div id="user-payment-fields" class="form-grid">
+                    <div class="form-group"><label for="user-payment-status">Estado de pago</label><select id="user-payment-status"><option value="al_corriente">Al corriente</option><option value="adeudo">Adeudo</option><option value="beca">Beca</option></select></div>
+                    <div class="form-group"><label for="user-balance">Saldo pendiente (MXN)</label><input id="user-balance" type="number" min="0" step="0.01" value="0"></div>
+                </div>
+                <h4 class="rbac-form-section">Acceso Especial a Módulos</h4>
+                <div class="rbac-permission-options">
+                    <label><input type="checkbox" id="user-access-finance"> Conceder acceso al Módulo de Finanzas</label>
+                    <label><input type="checkbox" id="user-access-school"> Conceder acceso al Módulo de Control Escolar</label>
+                    <label><input type="checkbox" id="user-export-reports"> Permitir exportar reportes PDF y Excel</label>
+                    <label><input type="checkbox" id="user-modify-payments"> Permitir modificar o anular pagos / recibos</label>
+                </div>
+                <p id="user-form-feedback" class="rbac-feedback" role="status" aria-live="polite"></p>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeUserModal()">Cancelar</button>
+                    <button type="submit" class="rbac-button rbac-button-primary"><i class="fa-solid fa-floppy-disk"></i> Guardar Usuario y Permisos</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,104 @@
+<section class="academic-page">
+    <header class="academic-heading">
+        <h2>Asignación Académica</h2>
+        <p>Vincula docentes a grupos y materias, o inscribe alumnos.</p>
+    </header>
+
+    <div class="academic-tabs" role="tablist" aria-label="Acciones académicas">
+        <button class="academic-tab active" id="tab-docente" type="button" role="tab" aria-selected="true"
+            aria-controls="panel-docente" onclick="switchAcademicTab('docente')">Docente a Grupo</button>
+        <button class="academic-tab" id="tab-alumno" type="button" role="tab" aria-selected="false"
+            aria-controls="panel-alumno" onclick="switchAcademicTab('alumno')">Inscribir Alumno</button>
+        <button class="academic-tab" id="tab-grupos" type="button" role="tab" aria-selected="false"
+            aria-controls="panel-grupos" onclick="switchAcademicTab('grupos')">Consulta de Grupos Existentes</button>
+    </div>
+
+    <div id="panel-docente" class="academic-content-grid" role="tabpanel" aria-labelledby="tab-docente">
+        <section class="academic-card">
+            <h3>Asignar Docente a Grupo/Materia</h3>
+            <form id="teacher-assignment-form" onsubmit="createTeacherAssignment(event)">
+                <div class="academic-form-field">
+                    <label for="assignment-teacher">Docente</label>
+                    <select id="assignment-teacher" required>
+                        <option value="">Selecciona docente...</option>
+                    </select>
+                </div>
+                <div class="academic-form-field">
+                    <label for="assignment-group">Grupo</label>
+                    <select id="assignment-group" required onchange="renderTeacherSubjectOptions()">
+                        <option value="">Selecciona grupo...</option>
+                    </select>
+                </div>
+                <div class="academic-form-field">
+                    <label for="assignment-subject">Materia</label>
+                    <select id="assignment-subject" required>
+                        <option value="">Selecciona materia...</option>
+                    </select>
+                </div>
+                <button class="btn-primary academic-primary-button" type="submit">
+                    <i class="fa-solid fa-link" aria-hidden="true"></i> Asignar
+                </button>
+            </form>
+        </section>
+
+        <section class="academic-card">
+            <h3>Asignaciones Registradas</h3>
+            <div id="teacher-assignments-list"></div>
+        </section>
+    </div>
+
+    <div id="panel-alumno" class="academic-content-grid" role="tabpanel" aria-labelledby="tab-alumno" hidden>
+        <section class="academic-card">
+            <h3>Inscribir Alumno a Grupo/Materia</h3>
+            <form id="student-enrollment-form" onsubmit="createStudentEnrollment(event)">
+                <div class="academic-form-field">
+                    <label for="enrollment-career">Paso 1 · Especialidad / Carrera</label>
+                    <select id="enrollment-career" required onchange="updateEnrollmentGroups()">
+                        <option value="">Selecciona especialidad...</option>
+                    </select>
+                </div>
+                <div class="academic-form-field">
+                    <label for="enrollment-group">Paso 2 · Grupo</label>
+                    <select id="enrollment-group" required disabled onchange="renderEnrollmentSubjects(); renderStudentEnrollments()">
+                        <option value="">Selecciona grupo...</option>
+                    </select>
+                </div>
+                <div class="academic-form-field">
+                    <label>Paso 3 · Materias (selecciona una o varias)</label>
+                    <div id="enrollment-subject-options" class="academic-subject-options" aria-live="polite">Selecciona primero una especialidad y grupo.</div>
+                </div>
+                <div class="academic-form-field">
+                    <label for="enrollment-registration">Alumno · Matrícula</label>
+                    <input type="text" id="enrollment-registration" required placeholder="Ej. 2024-0312">
+                </div>
+                <div class="academic-form-actions">
+                    <button class="btn-primary academic-primary-button" type="submit">
+                        <i class="fa-solid fa-link" aria-hidden="true"></i> Asignar Materias Seleccionadas
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <section class="academic-card">
+            <h3>Alumnos Inscritos</h3>
+            <div id="student-enrollments-list"></div>
+        </section>
+    </div>
+
+    <section id="panel-grupos" class="academic-groups-panel" role="tabpanel" aria-labelledby="tab-grupos" hidden>
+        <section class="academic-card">
+            <div class="academic-group-header">
+                <div>
+                    <h3>Consulta de Grupos Existentes</h3>
+                    <p>Selecciona un grupo para consultar docentes, materias y alumnos inscritos.</p>
+                </div>
+                <label class="academic-group-select-label" for="existing-group-select">Grupo
+                    <select id="existing-group-select" onchange="renderSelectedGroup()"></select>
+                </label>
+            </div>
+            <div id="existing-group-details"></div>
+        </section>
+    </section>
+
+    <p id="academic-feedback" class="academic-feedback" role="status" aria-live="polite"></p>
+</section>

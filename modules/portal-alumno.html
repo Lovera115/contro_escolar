@@ -1,0 +1,131 @@
+<section class="student-portal">
+    <header class="portal-page-heading">
+        <div>
+            <h2>Mi Portal</h2>
+            <p>Consulta tu información, expediente y trayectoria académica.</p>
+        </div>
+        <span class="portal-period-badge">Cuatrimestre 2026-1</span>
+    </header>
+
+    <nav class="portal-tabs" aria-label="Secciones del portal del alumno">
+        <button type="button" class="portal-tab active" aria-current="page" onclick="switchStudentPortalTab('dashboard', this)"><i class="fa-solid fa-house"></i> Mi Portal</button>
+        <button type="button" class="portal-tab" onclick="switchStudentPortalTab('profile', this)"><i class="fa-solid fa-address-card"></i> Mis Datos</button>
+        <button type="button" class="portal-tab" onclick="switchStudentPortalTab('documents', this)"><i class="fa-solid fa-folder-open"></i> Expediente Digital</button>
+        <button type="button" class="portal-tab" onclick="switchStudentPortalTab('grades', this)"><i class="fa-solid fa-graduation-cap"></i> Trayectoria Académica</button>
+    </nav>
+
+    <section id="portal-panel-dashboard" class="portal-panel">
+        <div class="portal-overview-grid">
+            <article class="portal-profile-card">
+                <div class="portal-avatar" id="portal-avatar">AG</div>
+                <h3 id="portal-student-name">Ana García López</h3>
+                <p class="portal-student-career" id="portal-student-career">Lic. en Derecho</p>
+                <dl class="portal-profile-details">
+                    <div><dt>Matrícula</dt><dd id="portal-registration">2024-0312</dd></div>
+                    <div><dt>Cuatrimestre</dt><dd id="portal-cuatrimestre">3er Cuatrimestre</dd></div>
+                    <div><dt>Turno</dt><dd>Matutino</dd></div>
+                    <div><dt>Promedio</dt><dd>8.53</dd></div>
+                </dl>
+            </article>
+
+            <div class="portal-metrics-grid">
+                <article class="portal-metric-card">
+                    <span class="portal-metric-icon metric-books"><i class="fa-solid fa-layer-group"></i></span>
+                    <div><strong id="portal-enrolled-subjects">4</strong><span>Materias Inscritas</span></div>
+                </article>
+                <article class="portal-metric-card">
+                    <span class="portal-metric-icon metric-average"><i class="fa-solid fa-star"></i></span>
+                    <div><strong id="portal-period-average">8.53</strong><span>Promedio General</span><small>Cuatrimestre 2026-1</small></div>
+                </article>
+                <article class="portal-metric-card">
+                    <span class="portal-metric-icon metric-attendance"><i class="fa-solid fa-chart-column"></i></span>
+                    <div><strong>88%</strong><span>Asistencia General</span><small>Por encima del mínimo</small></div>
+                </article>
+                <article class="portal-metric-card">
+                    <span class="portal-metric-icon metric-attendance"><i class="fa-solid fa-circle-check"></i></span>
+                    <div><strong id="portal-passed-subjects">3</strong><span>Materias aprobadas</span><small>Cuatrimestre 2026-1</small></div>
+                </article>
+            </div>
+        </div>
+
+        <section class="portal-schedule-section">
+            <div class="portal-section-heading">
+                <div><h3>Mi Horario Semanal</h3><p>Cuatrimestre 2026-1 · Turno Matutino</p></div>
+            </div>
+            <div class="portal-table-scroll">
+                <table class="portal-schedule-table">
+                    <thead><tr><th>Hora</th><th>Lunes</th><th>Martes</th><th>Miércoles</th><th>Jueves</th><th>Viernes</th></tr></thead>
+                    <tbody>
+                        <tr><th>08:00 – 10:00</th><td><span class="schedule-course">Der. Constitucional</span></td><td></td><td><span class="schedule-course">Der. Constitucional</span></td><td></td><td><span class="schedule-course">Der. Constitucional</span></td></tr>
+                        <tr><th>10:00 – 12:00</th><td></td><td><span class="schedule-course schedule-course-purple">Teoría del Estado</span></td><td></td><td><span class="schedule-course schedule-course-purple">Teoría del Estado</span></td><td></td></tr>
+                        <tr><th>12:00 – 14:00</th><td><span class="schedule-course schedule-course-green">Derecho Administrativo</span></td><td></td><td><span class="schedule-course schedule-course-green">Derecho Administrativo</span></td><td></td><td></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </section>
+
+    <section id="portal-panel-profile" class="portal-panel" hidden>
+        <form id="student-profile-form" onsubmit="saveStudentProfile(event)">
+            <section class="portal-form-card">
+                <div class="portal-section-heading"><div><h3>Información personal</h3><p>Datos institucionales de consulta; para cambios solicita apoyo a Control Escolar.</p></div><span class="portal-readonly-badge">Solo lectura</span></div>
+                <div class="portal-form-grid">
+                    <div class="portal-field"><label for="profile-registration">Matrícula</label><input id="profile-registration" value="2024-0312" readonly></div>
+                    <div class="portal-field portal-span-2"><label for="profile-name">Nombre del alumno</label><input id="profile-name" value="Ana García López" readonly></div>
+                    <div class="portal-field"><label for="profile-birthdate">Fecha de nacimiento</label><input id="profile-birthdate" value="15/04/2005" readonly></div>
+                    <div class="portal-field"><label for="profile-curp">CURP</label><input id="profile-curp" value="GALA050415MDFRPN08" readonly></div>
+                    <div class="portal-field"><label for="profile-id-number">INE / Credencial de elector</label><input id="profile-id-number" value="GALA050415MDFRPN08" readonly></div>
+                    <div class="portal-field"><label for="profile-sex">Sexo</label><input id="profile-sex" value="Femenino" readonly></div>
+                    <div class="portal-field"><label for="profile-marital">Estado civil</label><input id="profile-marital" value="Soltera" readonly></div>
+                </div>
+            </section>
+
+            <section class="portal-form-card">
+                <div class="portal-section-heading"><div><h3>Datos de contacto</h3><p>Mantén actualizados tus medios de contacto.</p></div></div>
+                <div class="portal-form-grid">
+                    <div class="portal-field"><label for="contact-email">Correo electrónico</label><input id="contact-email" type="email" required value="ana.garcia@alumnos.edu.mx"></div>
+                    <div class="portal-field"><label for="contact-email-confirm">Confirmar correo</label><input id="contact-email-confirm" type="email" required value="ana.garcia@alumnos.edu.mx"></div>
+                    <div class="portal-field"><label for="contact-home-phone">Teléfono local</label><input id="contact-home-phone" type="tel" inputmode="numeric" maxlength="10" pattern="[0-9]{10}" placeholder="10 dígitos"></div>
+                    <div class="portal-field"><label for="contact-work-phone">Teléfono de trabajo</label><input id="contact-work-phone" type="tel" inputmode="numeric" maxlength="10" pattern="[0-9]{10}" placeholder="10 dígitos"></div>
+                    <div class="portal-field"><label for="contact-mobile">Celular</label><input id="contact-mobile" type="tel" inputmode="numeric" maxlength="10" pattern="[0-9]{10}" value="7221234567"></div>
+                </div>
+            </section>
+
+            <section class="portal-form-card">
+                <div class="portal-section-heading"><div><h3>Domicilio</h3><p>Información de residencia actual.</p></div></div>
+                <div class="portal-form-grid">
+                    <div class="portal-field"><label for="address-state">Estado</label><select id="address-state" required><option value="">Selecciona estado</option><option selected>Estado de México</option><option>Ciudad de México</option><option>Morelos</option><option>Hidalgo</option></select></div>
+                    <div class="portal-field"><label for="address-municipality">Municipio</label><select id="address-municipality" required><option value="">Selecciona municipio</option><option selected>Toluca</option><option>Metepec</option><option>Lerma</option><option>Ecatepec</option></select></div>
+                    <div class="portal-field"><label for="address-neighborhood">Colonia</label><input id="address-neighborhood" required value="Centro"></div>
+                    <div class="portal-field portal-span-2"><label for="address-street">Calle</label><input id="address-street" required value="Av. Universidad"></div>
+                    <div class="portal-field"><label for="address-exterior">Núm. exterior</label><input id="address-exterior" required value="100"></div>
+                    <div class="portal-field"><label for="address-interior">Núm. interior</label><input id="address-interior" value=""></div>
+                    <div class="portal-field"><label for="address-between-1">Entre calle</label><input id="address-between-1"></div>
+                    <div class="portal-field"><label for="address-between-2">Y calle</label><input id="address-between-2"></div>
+                    <div class="portal-field portal-span-2"><label for="address-references">Referencias del domicilio</label><textarea id="address-references" rows="3" placeholder="Describe referencias para localizar el domicilio"></textarea></div>
+                </div>
+            </section>
+            <div class="portal-save-bar"><span id="profile-save-feedback" role="status" aria-live="polite"></span><button class="btn-primary portal-save-button" type="submit"><i class="fa-solid fa-floppy-disk"></i> Guardar y Actualizar Información</button></div>
+        </form>
+    </section>
+
+    <section id="portal-panel-documents" class="portal-panel" hidden>
+        <div class="portal-section-heading"><div><h3>Expediente Digital</h3><p>Sube tus documentos en PDF o imagen JPG/PNG. Tamaño máximo: 5 MB por archivo.</p></div><span id="student-file-status" class="document-status-badge status-review">Expediente incompleto</span></div>
+        <div id="student-documents-list" class="student-documents-list"></div>
+    </section>
+
+    <section id="portal-panel-grades" class="portal-panel" hidden>
+        <div class="portal-section-heading trajectory-heading">
+            <div><h3>Trayectoria Académica y Calificaciones</h3><p>Consulta tus calificaciones por parcial y la calificación general de cada materia.</p></div>
+            <label class="portal-filter-field" for="grades-period-filter">Cuatrimestre
+                <select id="grades-period-filter" onchange="renderStudentGrades()"><option value="2026-1">2026-1</option><option value="2025-3">2025-3</option><option value="2025-2">2025-2</option></select>
+            </label>
+        </div>
+        <div class="portal-table-scroll">
+            <table class="portal-data-table">
+                <thead><tr><th>Clave</th><th>Materia</th><th>Parcial 1</th><th>Parcial 2</th><th>Parcial 3</th><th>Calificación general</th><th>Estado</th></tr></thead>
+                <tbody id="student-grades-body"></tbody>
+            </table>
+        </div>
+    </section>
+</section>
