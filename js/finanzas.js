@@ -124,6 +124,37 @@ function initializeFinanceAudit(section = 'audit') {
 
 // FORMATEADOR DE MONEDA
 const fmtMXN = (amount) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
+const financeMonthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+function getCuatrimestreMonthNames(period) {
+    const cuatrimestre = Number(String(period || '').split('-')[1]);
+    const startMonth = [1, 2, 3].includes(cuatrimestre) ? (cuatrimestre - 1) * 4 : 0;
+    return Array.from({ length: 4 }, (_, index) => financeMonthNames[(startMonth + index) % 12]);
+}
+
+function getPaymentConceptLabel(concept, period) {
+    if (concept === 'Inscripción' || concept === 'Reinscripción') return concept;
+    const monthMatch = String(concept || '').match(/^Mes\s*([1-4])$/i);
+    if (monthMatch) {
+        const monthName = getCuatrimestreMonthNames(period)[Number(monthMatch[1]) - 1];
+        return `Colegiatura Mes ${monthMatch[1]} · ${monthName}`;
+    }
+    return String(concept || 'Concepto sin especificar');
+}
+
+function updatePayPeriodOptions() {
+    const period = document.getElementById('pay-cuatrimestre')?.value || '2026-1';
+    const conceptSelect = document.getElementById('pay-concepto');
+    if (!conceptSelect) return;
+    const selectedConcept = conceptSelect.value || 'Inscripción';
+    const months = getCuatrimestreMonthNames(period);
+    conceptSelect.innerHTML = [
+        '<option value="Inscripción">Inscripción Cuatrimestral</option>',
+        ...months.map((month, index) => `<option value="Mes ${index + 1}">Colegiatura Mes ${index + 1} · ${month}</option>`)
+    ].join('');
+    conceptSelect.value = [...conceptSelect.options].some(option => option.value === selectedConcept)
+        ? selectedConcept : 'Inscripción';
+}
 
 function escapeFinanceHtml(value) {
     return String(value ?? '').replace(/[&<>"']/g, character => ({
@@ -227,7 +258,11 @@ function renderStudentsTable(data = studentsDB) {
     }
 
     data.forEach(s => {
-        const saldo = calculateStudentBalance(s);
+        const monthlySnapshot = s.monthlySnapshot;
+        const saldo = monthlySnapshot ? monthlySnapshot.balance : calculateStudentBalance(s);
+        const displayedStatus = monthlySnapshot ? monthlySnapshot.status : s.estado;
+        const paid = monthlySnapshot ? monthlySnapshot.paid : getStudentTotalPaid(s);
+        const paymentCount = monthlySnapshot ? monthlySnapshot.paymentCount : s.pagos.length;
 
         const badgeMap = {
             al_corriente: { class: 'status-activo', label: 'Al corriente' },
@@ -238,7 +273,7 @@ function renderStudentsTable(data = studentsDB) {
             baja: { class: 'status-inactivo', label: 'Baja' }
         };
 
-        const currentBadge = badgeMap[s.estado] || badgeMap.adeudo;
+        const currentBadge = badgeMap[displayedStatus] || badgeMap.adeudo;
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -248,7 +283,7 @@ function renderStudentsTable(data = studentsDB) {
             <td>${s.cuatrimestre || '2026-1'}</td>
             <td><span class="badge ${currentBadge.class}">${currentBadge.label}</span></td>
             <td><strong style="color: ${saldo > 0 ? '#B91C1C' : '#15803D'};">${fmtMXN(saldo)}</strong></td>
-            <td><span class="badge-count">${s.pagos.length} reg.</span></td>
+            <td><span class="badge-count">${paymentCount} reg.</span>${monthlySnapshot ? `<small>${fmtMXN(paid)} pagado</small>` : ''}</td>
             <td>
                 <button class="action-btn-sm btn-view" onclick="openDetailModal(${s.id})" title="Ver Ficha"><i class="fa-solid fa-eye"></i> Ver</button>
                 <button class="action-btn-sm btn-edit-sub" onclick="openStudentModal(${s.id})" title="Editar"><i class="fa-solid fa-pen"></i> Editar</button>
@@ -271,7 +306,7 @@ function getFinancialAuditStudents() {
         const accountStatus = calculateStudentAccountState(student);
         const searchFields = [
             student.nombre, student.matricula, getStudentGeneration(student), getStudentGroup(student),
-            ...student.pagos.map(payment => payment.folio)
+            ...student.pagos.flatMap(payment => [payment.folio, payment.numeroMovimiento])
         ].join(' ').toLocaleLowerCase('es-MX');
         const matchesGeneration = generation === 'todas' || getStudentGeneration(student) === generation;
         const matchesCareer = career === 'todas' || normalizeCarrera(student.carrera) === career;
@@ -343,12 +378,14 @@ function renderFinancialAudit() {
 function exportFinancialAuditCsv() {
     const students = getFinancialAuditStudents();
     const rows = [
-        ['Generación', 'Matrícula', 'Alumno', 'Carrera', 'Grupo', 'Beca', 'Cobrado total', 'Adeudo histórico', 'Estado general', 'Folios'],
+        ['Generación', 'Matrícula', 'Alumno', 'Carrera', 'Grupo', 'Beca', 'Cobrado total', 'Adeudo histórico', 'Estado general', 'Folios', 'Números de movimiento'],
         ...students.map(student => [
             getStudentGeneration(student), student.matricula, student.nombre, normalizeCarrera(student.carrera),
             getStudentGroup(student), `${student.porcentajeBeca || 0}% ${normalizeCategoriaBeca(student.categoriaBeca)}`,
             getStudentTotalPaid(student).toFixed(2), calculateStudentBalance(student).toFixed(2),
-            getAccountStatusLabel(calculateStudentAccountState(student)).label, student.pagos.map(payment => payment.folio).join(' | ')
+            getAccountStatusLabel(calculateStudentAccountState(student)).label,
+            student.pagos.map(payment => payment.folio).filter(Boolean).join(' | '),
+            student.pagos.map(payment => payment.numeroMovimiento).filter(Boolean).join(' | ')
         ])
     ];
     const csv = '\uFEFF' + rows.map(row => row.map(value => `"${String(value ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
@@ -431,18 +468,60 @@ function filterStudentsTable() {
     const searchVal = document.getElementById('search-student')?.value.toLowerCase() || '';
     const carreraVal = document.getElementById('filter-carrera')?.value || 'todas';
     const cuatrimestreVal = document.getElementById('filter-cuatrimestre')?.value || 'todos';
+    const monthVal = document.getElementById('filter-mes')?.value || 'todos';
 
     const filtered = studentsDB.filter(s => {
         const matchesSearch = s.nombre.toLowerCase().includes(searchVal) || s.matricula.toLowerCase().includes(searchVal);
-        const matchesStatus = currentFilterStatus === 'todos' || s.estado === currentFilterStatus;
         const matchesCarrera = carreraVal === 'todas' || normalizeCarrera(s.carrera) === normalizeCarrera(carreraVal);
         const matchesCuatrimestre = cuatrimestreVal === 'todos' || (s.cuatrimestre || '2026-1') === cuatrimestreVal;
+        const monthlySnapshot = monthVal === 'todos' ? null : getStudentMonthlySnapshot(s, monthVal, cuatrimestreVal);
+        const matchesMonth = monthVal === 'todos' || monthlySnapshot !== null;
+        const status = monthlySnapshot?.status || s.estado;
+        const matchesStatus = currentFilterStatus === 'todos' || status === currentFilterStatus;
 
-        return matchesSearch && matchesStatus && matchesCarrera && matchesCuatrimestre;
+        return matchesSearch && matchesStatus && matchesCarrera && matchesCuatrimestre && matchesMonth;
     });
 
-    renderStudentsTable(filtered);
+    const visibleStudents = monthVal === 'todos'
+        ? filtered
+        : filtered.map(student => ({
+            ...student,
+            monthlySnapshot: getStudentMonthlySnapshot(student, monthVal, cuatrimestreVal)
+        }));
+    renderStudentsTable(visibleStudents);
+    if (monthVal !== 'todos') updateMonthlyStatusCounts(cuatrimestreVal, monthVal);
+    else updateKPIs();
     renderFinancialAudit();
+}
+
+function updateMonthlyStatusCounts(selectedPeriod, month) {
+    const counts = {
+        todos: 0,
+        al_corriente: 0,
+        adeudo: 0,
+        pendiente: 0,
+        vencido: 0,
+        baja: 0
+    };
+    studentsDB.forEach(student => {
+        if (selectedPeriod !== 'todos' && (student.cuatrimestre || '2026-1') !== selectedPeriod) return;
+        const snapshot = getStudentMonthlySnapshot(student, month, selectedPeriod);
+        if (!snapshot) return;
+        counts.todos += 1;
+        if (Object.hasOwn(counts, snapshot.status)) counts[snapshot.status] += 1;
+    });
+    const countIds = {
+        todos: 'count-todos',
+        al_corriente: 'count-corriente',
+        adeudo: 'count-adeudo',
+        pendiente: 'count-pendiente',
+        vencido: 'count-vencido',
+        baja: 'count-baja'
+    };
+    Object.entries(countIds).forEach(([status, id]) => {
+        const element = document.getElementById(id);
+        if (element) element.textContent = counts[status];
+    });
 }
 
 // --- CÁLCULO DINÁMICO DE CUOTA REAL EN MODAL ---
@@ -538,6 +617,8 @@ function openPayModal(studentId) {
     document.getElementById('pay-student-name').value = `${student.nombre} (${student.matricula})`;
     document.getElementById('pay-cuatrimestre').value = student.cuatrimestre || '2026-1';
     document.getElementById('pay-folio').value = `FAC-${student.cuatrimestre || '2026-1'}-${String(Math.floor(1000 + Math.random() * 9000))}`;
+    document.getElementById('pay-movement-number').value = '';
+    updatePayPeriodOptions();
     document.getElementById('pay-receipt-pdf').value = '';
     document.getElementById('pay-receipt-pdf-status').textContent = 'Adjunta el comprobante digital en formato PDF (máximo 5 MB).';
 
@@ -582,6 +663,12 @@ function savePaymentForm(e) {
     const studentId = document.getElementById('pay-student-id').value;
     const student = studentsDB.find(s => s.id == studentId);
     if (!student) return;
+    const movementNumber = document.getElementById('pay-movement-number').value.trim();
+    if (!movementNumber) {
+        alert('Captura el número de movimiento o referencia del pago.');
+        document.getElementById('pay-movement-number').focus();
+        return;
+    }
 
     const receiptInput = document.getElementById('pay-receipt-pdf');
     const receiptFile = receiptInput.files?.[0];
@@ -593,19 +680,20 @@ function savePaymentForm(e) {
     const receiptUrl = receiptFile ? URL.createObjectURL(receiptFile) : '';
     const payCuatrimestre = document.getElementById('pay-cuatrimestre').value || student.cuatrimestre || '2026-1';
     const folio = document.getElementById('pay-folio').value || `FAC-${payCuatrimestre}-${String(Math.floor(1000 + Math.random() * 9000))}`;
+    const concept = document.getElementById('pay-concepto').value;
+    const baseAmount = concept === 'Inscripción' ? student.cuotaBaseInsc : student.cuotaBaseCol;
 
     const newPayment = {
         folio,
-        concepto: document.getElementById('pay-concepto').value,
+        concepto: concept,
         monto: parseFloat(document.getElementById('pay-monto').value),
-        montoBase: document.getElementById('pay-concepto').value === 'Inscripción'
-            ? student.cuotaBaseInsc : student.cuotaBaseCol,
-        descuento: (document.getElementById('pay-concepto').value === 'Inscripción'
-            ? student.cuotaBaseInsc : student.cuotaBaseCol) * (Number(student.porcentajeBeca || 0) / 100),
+        montoBase: baseAmount,
+        descuento: baseAmount * (Number(student.porcentajeBeca || 0) / 100),
         periodo: payCuatrimestre,
         fecha: new Date().toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }),
         metodo: document.getElementById('pay-metodo').value,
         comprobante: document.getElementById('pay-comprobante').value,
+        numeroMovimiento: movementNumber,
         receiptPdfName: receiptFile?.name || '',
         receiptPdfUrl: receiptUrl,
         registradoPor: "Admin Sistema"
@@ -693,15 +781,72 @@ function calculateStudentAccountState(student) {
 function getPaymentDueDate(payment) {
     if (payment.fechaVencimiento) return payment.fechaVencimiento;
     const year = String(payment.periodo || '').slice(0, 4) || '—';
-    const dueMonths = {
-        'Inscripción': 'Ene', 'Reinscripción': 'Ene',
-        'Mes 1': 'Feb', 'Mes 2': 'Mar', 'Mes 3': 'Abr', 'Mes 4': 'May',
-        Enero: 'Ene', Febrero: 'Feb', Marzo: 'Mar', Abril: 'Abr', Mayo: 'May',
-        Junio: 'Jun', Julio: 'Jul', Agosto: 'Ago', Septiembre: 'Sep', Octubre: 'Oct',
-        Noviembre: 'Nov', Diciembre: 'Dic'
-    };
-    const month = dueMonths[payment.concepto] || 'Ene';
+    const monthIndex = Number(String(payment.periodo || '').split('-')[1]) - 1;
+    const startMonth = [0, 1, 2].includes(monthIndex) ? monthIndex * 4 : 0;
+    const conceptMatch = String(payment.concepto || '').match(/^Mes\s*([1-4])$/i);
+    const enrollmentConcept = /inscripci[oó]n|reinscripci[oó]n/i.test(payment.concepto);
+    const month = enrollmentConcept
+        ? financeMonthNames[startMonth].slice(0, 3)
+        : conceptMatch
+            ? financeMonthNames[(startMonth + Number(conceptMatch[1]) - 1) % 12].slice(0, 3)
+            : ({ Enero: 'Ene', Febrero: 'Feb', Marzo: 'Mar', Abril: 'Abr', Mayo: 'May', Junio: 'Jun', Julio: 'Jul', Agosto: 'Ago', Septiembre: 'Sep', Octubre: 'Oct', Noviembre: 'Nov', Diciembre: 'Dic' }[payment.concepto] || financeMonthNames[startMonth].slice(0, 3));
     return `05 ${month} ${year}`;
+}
+
+function getPaymentCalendarMonth(payment, period) {
+    const concept = String(payment.concepto || '');
+    if (/inscripci[oó]n|reinscripci[oó]n/i.test(concept)) {
+        return getCuatrimestreMonthNames(period)[0];
+    }
+    const numberedMonth = concept.match(/^Mes\s*([1-4])$/i);
+    if (numberedMonth) {
+        return getCuatrimestreMonthNames(period)[Number(numberedMonth[1]) - 1];
+    }
+    return financeMonthNames.find(month => month.toLocaleLowerCase('es-MX') === concept.toLocaleLowerCase('es-MX')) || null;
+}
+
+function getStudentMonthlySnapshot(student, month, selectedPeriod) {
+    const period = selectedPeriod === 'todos'
+        ? student.cuatrimestre || '2026-1'
+        : selectedPeriod;
+    const periodPayments = student.pagos.filter(payment =>
+        (payment.periodo || student.cuatrimestre || '2026-1') === period
+    );
+    const payments = periodPayments.filter(payment =>
+        getPaymentCalendarMonth(payment, period) === month
+    );
+    const termMonthIndex = getCuatrimestreMonthNames(period).indexOf(month);
+    if (termMonthIndex < 0 && !payments.length) return null;
+
+    const feePercentage = Number(student.porcentajeBeca || 0);
+    let expected = termMonthIndex >= 0
+        ? getRealFee(Number(student.cuotaBaseCol) || 0, feePercentage)
+        : 0;
+    if (termMonthIndex === 0) {
+        expected += getRealFee(Number(student.cuotaBaseInsc) || 0, feePercentage);
+    } else if (termMonthIndex < 0) {
+        const expectedByConcept = new Map();
+        payments.forEach(payment => {
+            const bucket = getMonthlyPaymentBucket(payment, period);
+            if (!expectedByConcept.has(bucket.key)) {
+                expectedByConcept.set(bucket.key, getRealFee(getPaymentBaseAmount(student, payment), feePercentage));
+            }
+        });
+        expected = [...expectedByConcept.values()].reduce((sum, amount) => sum + amount, 0);
+    }
+
+    const paid = payments.reduce((sum, payment) => sum + (Number(payment.monto) || 0), 0);
+    const balance = Math.max(0, expected - paid);
+    const status = student.estado === 'baja'
+        ? 'baja'
+        : balance === 0 && expected > 0
+            ? 'al_corriente'
+            : student.estado === 'vencido'
+                ? 'vencido'
+                : student.estado === 'adeudo'
+                    ? 'adeudo'
+                    : 'pendiente';
+    return { balance, paid, paymentCount: payments.length, status };
 }
 
 function getPaymentBaseAmount(student, payment) {
@@ -721,8 +866,31 @@ function getFinancialTerms(student) {
     const currentPeriod = student.cuatrimestre || '2026-1';
     const currentTerm = termsByPeriod.get(currentPeriod) || { period: currentPeriod, payments: [], pendingAmount: 0 };
     currentTerm.pendingAmount = calculateStudentBalance(student);
-    if (currentTerm.pendingAmount > 0 && !termsByPeriod.has(currentPeriod)) termsByPeriod.set(currentPeriod, currentTerm);
+    if (!termsByPeriod.has(currentPeriod)) termsByPeriod.set(currentPeriod, currentTerm);
     return [...termsByPeriod.values()].sort((left, right) => left.period.localeCompare(right.period));
+}
+
+function getMonthlyPaymentBucket(payment, period) {
+    if (/inscripci[oó]n|reinscripci[oó]n/i.test(payment.concepto)) {
+        return { key: 'enrollment', label: payment.concepto };
+    }
+    const numberedMonth = String(payment.concepto || '').match(/^Mes\s*([1-4])$/i);
+    if (numberedMonth) {
+        const monthNumber = Number(numberedMonth[1]);
+        return { key: `month-${monthNumber}`, label: getPaymentConceptLabel(`Mes ${monthNumber}`, period) };
+    }
+    const calendarMonthIndex = financeMonthNames.findIndex(month =>
+        month.toLocaleLowerCase('es-MX') === String(payment.concepto || '').toLocaleLowerCase('es-MX')
+    );
+    if (calendarMonthIndex >= 0) {
+        const termMonths = getCuatrimestreMonthNames(period);
+        const termMonth = termMonths.findIndex(month => financeMonthNames.indexOf(month) === calendarMonthIndex);
+        if (termMonth >= 0) {
+            return { key: `month-${termMonth + 1}`, label: `Colegiatura Mes ${termMonth + 1} · ${termMonths[termMonth]}` };
+        }
+        return { key: `legacy-month-${calendarMonthIndex}`, label: `Colegiatura ${financeMonthNames[calendarMonthIndex]}` };
+    }
+    return { key: `other-${payment.concepto}`, label: getPaymentConceptLabel(payment.concepto, period) };
 }
 
 function renderFinancialTermTimeline(student) {
@@ -734,7 +902,28 @@ function renderFinancialTermTimeline(student) {
         return;
     }
     timeline.innerHTML = terms.map((term, termIndex) => {
-        const rows = term.payments.map(payment => {
+        const monthNames = getCuatrimestreMonthNames(term.period);
+        const buckets = new Map();
+        term.payments.forEach(payment => {
+            const bucket = getMonthlyPaymentBucket(payment, term.period);
+            if (!buckets.has(bucket.key)) buckets.set(bucket.key, { ...bucket, payments: [] });
+            buckets.get(bucket.key).payments.push(payment);
+        });
+        const standardSlots = [
+            { key: 'enrollment', label: 'Inscripción' },
+            ...monthNames.map((month, index) => ({ key: `month-${index + 1}`, label: `Colegiatura Mes ${index + 1} · ${month}` }))
+        ];
+        const legacySlots = [...buckets.entries()]
+            .filter(([key]) => !standardSlots.some(slot => slot.key === key))
+            .map(([, bucket]) => bucket)
+            .sort((left, right) => left.label.localeCompare(right.label, 'es-MX'));
+        const slots = [...standardSlots, ...legacySlots];
+        const rows = slots.flatMap(slot => {
+            const payments = buckets.get(slot.key)?.payments || [];
+            if (!payments.length) {
+                return [`<tr class="finance-month-empty-row"><td>${escapeFinanceHtml(slot.label)}</td><td colspan="11">Sin pagos registrados para este mes.</td></tr>`];
+            }
+            return payments.map(payment => {
             const base = getPaymentBaseAmount(student, payment);
             const amount = Number(payment.monto) || 0;
             const discount = payment.descuento !== undefined
@@ -746,11 +935,12 @@ function renderFinancialTermTimeline(student) {
                     ? ['Convenio / prórroga', 'finance-status-agreement']
                     : ['Pagado', 'finance-status-paid'];
             return `<tr>
-                <td>${escapeFinanceHtml(payment.concepto)}</td><td>${fmtMXN(base)}</td>
+                <td>${escapeFinanceHtml(getMonthlyPaymentBucket(payment, term.period).label)}</td><td>${fmtMXN(base)}</td>
                 <td>${discount > 0 ? `${fmtMXN(discount)} (${Number(student.porcentajeBeca || 0)}%)` : '—'}</td>
                 <td><strong class="finance-amount-paid">${fmtMXN(amount)}</strong></td>
                 <td>${escapeFinanceHtml(getPaymentDueDate(payment))}</td><td>${escapeFinanceHtml(payment.fecha || '—')}</td>
                 <td><strong>${escapeFinanceHtml(payment.folio || '—')}</strong></td>
+                <td>${escapeFinanceHtml(payment.numeroMovimiento || '—')}</td>
                 <td>${escapeFinanceHtml(payment.metodo || '—')}</td>
                 <td><span class="finance-state-badge ${status[1]}">${status[0]}</span></td>
                 <td>
@@ -765,6 +955,7 @@ function renderFinancialTermTimeline(student) {
                 </td>
                 <td><button class="action-btn btn-delete" type="button" onclick="deletePayment(${student.id}, ${payment.sourceIndex})" title="Eliminar pago"><i class="fa-solid fa-trash"></i></button></td>
             </tr>`;
+            });
         });
         if (term.pendingAmount > 0) {
             const base = term.pendingAmount / Math.max(0.01, 1 - (Number(student.porcentajeBeca || 0) / 100));
@@ -777,15 +968,15 @@ function renderFinancialTermTimeline(student) {
                 <td>Saldo pendiente del cuatrimestre</td><td>${fmtMXN(base)}</td>
                 <td>${Number(student.porcentajeBeca) > 0 ? `${fmtMXN(base - term.pendingAmount)} (${student.porcentajeBeca}%)` : '—'}</td>
                 <td><strong class="finance-amount-debt">${fmtMXN(term.pendingAmount)}</strong></td>
-                <td>Vencimientos del cuatrimestre</td><td>—</td><td>Sin recibo</td><td>—</td>
+                <td>Vencimientos del cuatrimestre</td><td>—</td><td>Sin recibo</td><td>—</td><td>—</td>
                 <td><span class="finance-state-badge ${status[1]}">${status[0]}</span></td><td>—</td><td>—</td>
             </tr>`);
         }
         return `<details class="finance-term-block" ${termIndex === terms.length - 1 ? 'open' : ''}>
             <summary><span><i class="fa-solid fa-calendar-days"></i> Cuatrimestre ${escapeFinanceHtml(term.period)}</span><small>${term.payments.length} recibos · Adeudo ${fmtMXN(term.pendingAmount)}</small></summary>
             <div class="table-container finance-term-table-wrap"><table class="data-table finance-term-table">
-                <thead><tr><th>Concepto</th><th>Monto base</th><th>Descuento / beca</th><th>Monto cobrado real</th><th>Vencimiento</th><th>Fecha de pago</th><th>Folio / transacción</th><th>Método de pago</th><th>Estatus</th><th>Comprobante</th><th>Acciones</th></tr></thead>
-                <tbody>${rows.length ? rows.join('') : '<tr><td colspan="11">Sin cargos registrados para este cuatrimestre.</td></tr>'}</tbody>
+                <thead><tr><th>Mes / concepto</th><th>Monto base</th><th>Descuento / beca</th><th>Monto cobrado real</th><th>Vencimiento</th><th>Fecha de pago</th><th>Folio / transacción</th><th>Número de movimiento / referencia</th><th>Método de pago</th><th>Estatus</th><th>Comprobante</th><th>Acciones</th></tr></thead>
+                <tbody>${rows.length ? rows.join('') : '<tr><td colspan="12">Sin cargos registrados para este cuatrimestre.</td></tr>'}</tbody>
             </table></div>
         </details>`;
     }).join('');
@@ -875,7 +1066,7 @@ function downloadStudentPaymentsPDF(studentId) {
         term.payments.forEach(payment => {
             if (y > 275) { doc.addPage(); y = 20; }
             doc.setFontSize(9);
-            doc.text(`${payment.concepto} · ${payment.folio || 'Sin folio'} · ${payment.fecha || '—'} · ${payment.metodo || '—'}`, 14, y);
+            doc.text(`${getPaymentConceptLabel(payment.concepto, term.period)} · Folio ${payment.folio || '—'} · Movimiento ${payment.numeroMovimiento || '—'} · ${payment.fecha || '—'} · ${payment.metodo || '—'}`, 14, y);
             doc.text(fmtMXN(payment.monto || 0), 157, y);
             y += 7;
         });

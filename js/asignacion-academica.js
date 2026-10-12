@@ -11,6 +11,11 @@ const academicGroupRecords = [
     { id: 'EDA-3A', label: '3º A', career: academicCareers[2], period: '2026-1' },
     { id: 'EDA-6C', label: '6º C', career: academicCareers[2], period: '2026-2' }
 ];
+const academicPeriodLabels = {
+    '2026-1': '2026-1-Enero-Abril',
+    '2026-2': '2026-2-Mayo-Agosto',
+    '2026-3': '2026-3-Septiembre-Diciembre'
+};
 const academicSubjectsByCareer = {
     [academicCareers[0]]: ['Responsabilidades Administrativas', 'Procedimiento de Responsabilidad Administrativa', 'Ética Pública', 'Control Gubernamental'],
     [academicCareers[1]]: ['Justicia Administrativa', 'Procedimiento Contencioso Administrativo', 'Derecho Procesal Administrativo', 'Medios de Impugnación'],
@@ -29,6 +34,15 @@ function escapeAcademicHtml(value) {
         '"': '&quot;',
         "'": '&#39;'
     })[character]);
+}
+
+function formatAcademicPeriod(period) {
+    return academicPeriodLabels[period] || period || 'Cuatrimestre sin definir';
+}
+
+function formatAcademicGroup(groupId) {
+    const group = academicGroupRecords.find(item => item.id === groupId);
+    return group ? `${group.label} · ${formatAcademicPeriod(group.period)}` : groupId;
 }
 
 function populateAcademicSelect(id, placeholder, values) {
@@ -52,7 +66,7 @@ function initializeAcademicAssignments() {
         .filter(user => user.type === 'docente' && user.status === 'activo')
         .map(user => ({ value: String(user.id), label: user.name }));
 
-    const groupOptions = academicGroupRecords.map(group => ({ value: group.id, label: `${group.label} · ${group.id.split('-')[0]}` }));
+    const groupOptions = academicGroupRecords.map(group => ({ value: group.id, label: `${group.label} · ${formatAcademicPeriod(group.period)}` }));
     populateAcademicSelect('assignment-teacher', 'Selecciona docente...', teachers);
     populateAcademicSelect('assignment-group', 'Selecciona grupo...', groupOptions);
     populateAcademicSelect('assignment-subject', 'Selecciona grupo primero...', []);
@@ -90,14 +104,18 @@ function initializeSampleEnrollments() {
 
 function updateEnrollmentGroups() {
     const career = document.getElementById('enrollment-career')?.value || '';
+    const period = document.getElementById('enrollment-period')?.value || '2026-1';
     const groupSelect = document.getElementById('enrollment-group');
     if (!groupSelect) return;
-    const groups = academicGroupRecords.filter(group => group.career === career);
-    populateAcademicSelect('enrollment-group', groups.length ? 'Selecciona grupo...' : 'Selecciona primero especialidad...', groups.map(group => ({
+    const groups = academicGroupRecords.filter(group => group.career === career && group.period === period);
+    const placeholder = !career
+        ? 'Selecciona primero especialidad...'
+        : groups.length ? 'Selecciona grupo...' : `No hay grupos para ${formatAcademicPeriod(period)}`;
+    populateAcademicSelect('enrollment-group', placeholder, groups.map(group => ({
         value: group.id,
-        label: `${group.label} · ${group.period}`
+        label: group.label
     })));
-    groupSelect.disabled = groups.length === 0;
+    groupSelect.disabled = !career || groups.length === 0;
     renderEnrollmentSubjects();
     renderStudentEnrollments();
 }
@@ -109,14 +127,28 @@ function renderEnrollmentSubjects() {
     if (!container) return;
     if (!group) {
         container.textContent = 'Selecciona primero una especialidad y grupo.';
+        updateEnrollmentSubjectSelectionSummary();
         return;
     }
     const subjects = academicSubjectsByCareer[group.career] || [];
-    container.innerHTML = subjects.map((subject, index) => `
+    container.innerHTML = subjects.map(subject => `
         <label class="academic-subject-chip">
-            <input type="checkbox" name="enrollment-subject" value="${escapeAcademicHtml(subject)}" ${index === 0 ? 'checked' : ''}>
+            <input type="checkbox" name="enrollment-subject" value="${escapeAcademicHtml(subject)}">
             <span>${escapeAcademicHtml(subject)}</span>
         </label>`).join('');
+    container.querySelectorAll('input[name="enrollment-subject"]').forEach(input => {
+        input.addEventListener('change', updateEnrollmentSubjectSelectionSummary);
+    });
+    updateEnrollmentSubjectSelectionSummary();
+}
+
+function updateEnrollmentSubjectSelectionSummary() {
+    const summary = document.getElementById('enrollment-subject-selection-summary');
+    if (!summary) return;
+    const selectedCount = document.querySelectorAll('input[name="enrollment-subject"]:checked').length;
+    summary.textContent = selectedCount
+        ? `${selectedCount} materia(s) seleccionada(s).`
+        : 'Marca una o varias materias de la lista.';
 }
 
 function switchAcademicTab(tab) {
@@ -193,7 +225,7 @@ function renderTeacherAssignments() {
                 <tbody>${teacherAssignments.map(item => `
                     <tr>
                         <td>${escapeAcademicHtml(item.teacherName)}</td>
-                        <td>${escapeAcademicHtml(item.group)}</td>
+                        <td>${escapeAcademicHtml(formatAcademicGroup(item.group))}</td>
                         <td>${escapeAcademicHtml(item.subject)}</td>
                         <td><button class="academic-remove-button" type="button" onclick="removeTeacherAssignment(${item.id})" aria-label="Eliminar asignación"><i class="fa-solid fa-link-slash"></i></button></td>
                     </tr>`).join('')}
@@ -283,6 +315,8 @@ function createStudentEnrollment(event) {
     renderStudentEnrollments();
     renderSelectedGroup();
     document.getElementById('enrollment-registration').value = '';
+    document.querySelectorAll('input[name="enrollment-subject"]:checked').forEach(input => { input.checked = false; });
+    updateEnrollmentSubjectSelectionSummary();
     setAcademicFeedback(`${added} materia(s) asignada(s) correctamente.`);
 }
 
@@ -307,7 +341,7 @@ function renderStudentEnrollments() {
                     <tr>
                         <td>${escapeAcademicHtml(item.name)}</td>
                         <td>${escapeAcademicHtml(item.registration)}</td>
-                        <td>${escapeAcademicHtml(item.group)}</td>
+                        <td>${escapeAcademicHtml(formatAcademicGroup(item.group))}</td>
                         <td>${escapeAcademicHtml(item.subject)}</td>
                         <td><button class="academic-remove-button" type="button" onclick="removeStudentEnrollment(${item.id})" aria-label="Eliminar inscripción"><i class="fa-solid fa-user-minus"></i></button></td>
                     </tr>`).join('')}
@@ -326,9 +360,13 @@ function removeStudentEnrollment(id) {
 function populateExistingGroupSelect() {
     const select = document.getElementById('existing-group-select');
     if (!select) return;
-    select.innerHTML = academicGroupRecords.map(group =>
-        `<option value="${escapeAcademicHtml(group.id)}">${escapeAcademicHtml(group.id)} · ${escapeAcademicHtml(group.career)}</option>`
-    ).join('');
+    const selectedPeriod = document.getElementById('existing-period-select')?.value || '2026-1';
+    const groups = academicGroupRecords.filter(group => group.period === selectedPeriod);
+    select.innerHTML = groups.length ? groups.map(group =>
+        `<option value="${escapeAcademicHtml(group.id)}">${escapeAcademicHtml(group.label)} · ${escapeAcademicHtml(group.career)} · ${escapeAcademicHtml(formatAcademicPeriod(group.period))}</option>`
+    ).join('') : '<option value="">No hay grupos para este cuatrimestre</option>';
+    select.disabled = groups.length === 0;
+    renderSelectedGroup();
 }
 
 function renderSelectedGroup() {
@@ -337,7 +375,8 @@ function renderSelectedGroup() {
     if (!select || !container) return;
     const group = academicGroupRecords.find(item => item.id === select.value);
     if (!group) {
-        container.innerHTML = '<p class="academic-empty-state">No hay grupos registrados.</p>';
+        const selectedPeriod = document.getElementById('existing-period-select')?.value;
+        container.innerHTML = `<p class="academic-empty-state">${selectedPeriod ? `No hay grupos registrados para ${escapeAcademicHtml(formatAcademicPeriod(selectedPeriod))}.` : 'No hay grupos registrados.'}</p>`;
         return;
     }
     const assignments = teacherAssignments.filter(item => item.group === group.id);
@@ -347,7 +386,7 @@ function renderSelectedGroup() {
         <div class="academic-group-summary">
             <div><span>Grupo</span><strong>${escapeAcademicHtml(group.label)} · ${escapeAcademicHtml(group.id)}</strong></div>
             <div><span>Especialidad / Carrera</span><strong>${escapeAcademicHtml(group.career)}</strong></div>
-            <div><span>Cuatrimestre</span><strong>${escapeAcademicHtml(group.period)}</strong></div>
+            <div><span>Cuatrimestre</span><strong>${escapeAcademicHtml(formatAcademicPeriod(group.period))}</strong></div>
         </div>
         <div class="academic-group-detail-grid">
             <section class="academic-group-detail">
@@ -411,7 +450,7 @@ function exportAcademicGroupPdf(groupId) {
     doc.setFontSize(10);
     doc.text(`Grupo: ${group.label} · ${group.id}`, 14, 29);
     doc.text(`Especialidad: ${group.career}`, 14, 36);
-    doc.text(`Cuatrimestre: ${group.period}`, 14, 43);
+    doc.text(`Cuatrimestre: ${formatAcademicPeriod(group.period)}`, 14, 43);
     doc.text('Materias y docentes', 14, 56);
     let y = 64;
     subjects.forEach(subject => {

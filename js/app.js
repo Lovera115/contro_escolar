@@ -80,7 +80,7 @@ async function loadModule(modulePath, pageTitle, section = '') {
 
     try {
         const separator = modulePath.includes('?') ? '&' : '?';
-        const response = await fetch(`${modulePath}${separator}v=20261007-modal-refresh-2`, { cache: 'no-store' });
+        const response = await fetch(`${modulePath}${separator}v=20261012-monthly-movements`, { cache: 'no-store' });
         if (!response.ok) throw new Error('Error al cargar la vista');
         
         const html = await response.text();

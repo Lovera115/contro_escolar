@@ -58,14 +58,23 @@
                     </select>
                 </div>
                 <div class="academic-form-field">
+                    <label for="enrollment-period">Paso 2 · Cuatrimestre</label>
+                    <select id="enrollment-period" required onchange="updateEnrollmentGroups()">
+                        <option value="2026-1">2026-1-Enero-Abril</option>
+                        <option value="2026-2">2026-2-Mayo-Agosto</option>
+                        <option value="2026-3">2026-3-Septiembre-Diciembre</option>
+                    </select>
+                </div>
+                <div class="academic-form-field">
                     <label for="enrollment-group">Paso 2 · Grupo</label>
                     <select id="enrollment-group" required disabled onchange="renderEnrollmentSubjects(); renderStudentEnrollments()">
                         <option value="">Selecciona grupo...</option>
                     </select>
                 </div>
                 <div class="academic-form-field">
-                    <label>Paso 3 · Materias (selecciona una o varias)</label>
-                    <div id="enrollment-subject-options" class="academic-subject-options" aria-live="polite">Selecciona primero una especialidad y grupo.</div>
+                    <label id="enrollment-subject-label">Paso 3 · Materias (selecciona una o varias)</label>
+                    <div id="enrollment-subject-options" class="academic-subject-options" role="group" aria-labelledby="enrollment-subject-label" aria-live="polite">Selecciona primero una especialidad y grupo.</div>
+                    <small id="enrollment-subject-selection-summary" class="academic-subject-selection-summary" aria-live="polite"></small>
                 </div>
                 <div class="academic-form-field">
                     <label for="enrollment-registration">Alumno · Matrícula</label>
@@ -92,9 +101,18 @@
                     <h3>Consulta de Grupos Existentes</h3>
                     <p>Selecciona un grupo para consultar docentes, materias y alumnos inscritos.</p>
                 </div>
-                <label class="academic-group-select-label" for="existing-group-select">Grupo
-                    <select id="existing-group-select" onchange="renderSelectedGroup()"></select>
-                </label>
+                <div class="academic-group-filters">
+                    <label class="academic-group-select-label" for="existing-period-select">Cuatrimestre
+                        <select id="existing-period-select" onchange="populateExistingGroupSelect()">
+                            <option value="2026-1">2026-1-Enero-Abril</option>
+                            <option value="2026-2">2026-2-Mayo-Agosto</option>
+                            <option value="2026-3">2026-3-Septiembre-Diciembre</option>
+                        </select>
+                    </label>
+                    <label class="academic-group-select-label" for="existing-group-select">Grupo
+                        <select id="existing-group-select" onchange="renderSelectedGroup()"></select>
+                    </label>
+                </div>
             </div>
             <div id="existing-group-details"></div>
         </section>

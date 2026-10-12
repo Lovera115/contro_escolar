@@ -140,8 +140,10 @@
             <option value="todos">Todos los cuatrimestres</option>
             <option value="2026-1">2026-1</option>
             <option value="2026-2">2026-2</option>
+            <option value="2026-3">2026-3</option>
             <option value="2027-1">2027-1</option>
             <option value="2027-2">2027-2</option>
+            <option value="2027-3">2027-3</option>
         </select>
     </div>
     
@@ -151,6 +153,24 @@
             <option value="Especialidad en Responsabilidades Administrativas (ERA)">Especialidad en Responsabilidades Administrativas (ERA)</option>
             <option value="Especialidad en Justicia Administrativa (EJA)">Especialidad en Justicia Administrativa (EJA)</option>
             <option value="Especialidad en Derecho Administrativo (EDA)">Especialidad en Derecho Administrativo (EDA)</option>
+        </select>
+    </div>
+
+    <div class="filter-group">
+        <select id="filter-mes" aria-label="Filtrar pagos por mes" onchange="filterStudentsTable()">
+            <option value="todos">Todos los Meses</option>
+            <option value="Enero">Enero</option>
+            <option value="Febrero">Febrero</option>
+            <option value="Marzo">Marzo</option>
+            <option value="Abril">Abril</option>
+            <option value="Mayo">Mayo</option>
+            <option value="Junio">Junio</option>
+            <option value="Julio">Julio</option>
+            <option value="Agosto">Agosto</option>
+            <option value="Septiembre">Septiembre</option>
+            <option value="Octubre">Octubre</option>
+            <option value="Noviembre">Noviembre</option>
+            <option value="Diciembre">Diciembre</option>
         </select>
     </div>
 </div>
@@ -225,10 +245,13 @@
                     <div class="form-group">
                         <label>Cuatrimestre</label>
                         <select id="st-cuatrimestre" required>
-                            <option value="2026-1">2026-1</option>
-                            <option value="2026-2">2026-2</option>
-                            <option value="2027-1">2027-1</option>
-                            <option value="2027-2">2027-2</option>
+                            <option value="2026-1">2026-1-Enero-Abril</option>
+                            <option value="2026-2">2026-2-Mayo-Agosto</option>
+                            <option value="2026-3">2026-3-Septiembre-Diciembre</option>
+
+                            <option value="2027-1">2027-1-Enero-Abril</option>
+                            <option value="2027-2">2027-2-Mayo-Agosto</option>
+                            <option value="2027-3">2027-2-Septiembre-Diciembre</option>
                         </select>
                     </div>
                 </div>
@@ -311,12 +334,18 @@
                     </div>
                     <div class="form-group">
                         <label>Cuatrimestre</label>
-                        <select id="pay-cuatrimestre" required>
-                            <option value="2026-1">2026-1</option>
-                            <option value="2026-2">2026-2</option>
-                            <option value="2027-1">2027-1</option>
-                            <option value="2027-2">2027-2</option>
+                        <select id="pay-cuatrimestre" required onchange="updatePayPeriodOptions()">
+                            <option value="2026-1">2026-1-Enero-Abril</option>
+                            <option value="2026-2">2026-2-Mayo-Agosto</option>
+                            <option value="2026-3">2026-3-Septiembre-Diciembre</option>
+                            <option value="2027-1">2027-1-Enero-Abril</option>
+                            <option value="2027-2">2027-2-Mayo-Agosto</option>
+                            <option value="2027-3">2027-3-Septiembre-Diciembre</option>
                         </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="pay-movement-number">Número de movimiento / referencia de pago</label>
+                        <input type="text" id="pay-movement-number" required maxlength="80" placeholder="Ej. MOV-8492031 o Ref. SPEI">
                     </div>
                 </div>
 
@@ -325,10 +354,10 @@
                         <label>Concepto a Pagar</label>
                         <select id="pay-concepto" required onchange="autoFillPayAmount()">
                             <option value="Inscripción">Inscripción Cuatrimestral</option>
-                            <option value="Septiembre">Colegiatura Septiembre</option>
-                            <option value="Octubre">Colegiatura Octubre</option>
-                            <option value="Noviembre">Colegiatura Noviembre</option>
-                            <option value="Diciembre">Colegiatura Diciembre</option>
+                            <option value="Mes 1">Colegiatura Mes 1</option>
+                            <option value="Mes 2">Colegiatura Mes 2</option>
+                            <option value="Mes 3">Colegiatura Mes 3</option>
+                            <option value="Mes 4">Colegiatura Mes 4</option>
                         </select>
                     </div>
                     <div class="form-group">

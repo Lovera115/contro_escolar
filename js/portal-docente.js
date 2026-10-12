@@ -22,11 +22,21 @@ const teacherExamScores = [
 
 let teacherAttendanceState = {};
 let teacherPeriod = '2026-1';
+const teacherPeriodLabels = {
+    '2026-1': '2026-1-Enero-Abril',
+    '2026-2': '2026-2-Mayo-Agosto',
+    '2026-3': '2026-3-Septiembre-Diciembre',
+    '2025-3': '2025-3-Septiembre-Diciembre'
+};
 
 function escapeTeacherHtml(value) {
     return String(value ?? '').replace(/[&<>"']/g, character => ({
         '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
     })[character]);
+}
+
+function formatTeacherPeriod(period) {
+    return teacherPeriodLabels[period] || period;
 }
 
 function initializeTeacherPortal() {
@@ -82,7 +92,7 @@ function teacherGroupsForPeriod() {
 function populateTeacherGroupFilters() {
     const groups = teacherGroupsForPeriod();
     const groupOptions = groups.map(group =>
-        `<option value="${group.id}">${escapeTeacherHtml(group.subject)} · ${escapeTeacherHtml(group.group)}</option>`
+        `<option value="${group.id}">${escapeTeacherHtml(group.subject)} · ${escapeTeacherHtml(group.group)} · ${escapeTeacherHtml(formatTeacherPeriod(group.period))}</option>`
     ).join('');
     ['attendance-group', 'grades-group'].forEach(id => {
         const select = document.getElementById(id);
@@ -95,9 +105,14 @@ function renderTeacherGroupDashboard() {
     const cards = document.getElementById('teacher-group-cards');
     if (!cards) return;
     const groups = teacherGroupsForPeriod();
+    if (groups.length === 0) {
+        cards.innerHTML = `<div class="teacher-empty-state">No hay grupos asignados para ${escapeTeacherHtml(formatTeacherPeriod(teacherPeriod))}.</div>`;
+        document.getElementById('teacher-schedule-body').innerHTML = '<tr><td colspan="6" class="teacher-empty-state">No hay clases programadas para este cuatrimestre.</td></tr>';
+        return;
+    }
     cards.innerHTML = groups.map(group => `
         <article class="teacher-group-card">
-            <div class="teacher-group-card-top"><span class="teacher-course-icon"><i class="fa-solid fa-book-open"></i></span><span class="teacher-period-chip">${escapeTeacherHtml(group.cuatrimestre)}</span></div>
+            <div class="teacher-group-card-top"><span class="teacher-course-icon"><i class="fa-solid fa-book-open"></i></span><span class="teacher-period-chip">${escapeTeacherHtml(formatTeacherPeriod(group.period))}</span></div>
             <h3>${escapeTeacherHtml(group.subject)}</h3>
             <p>${escapeTeacherHtml(group.group)}</p>
             <dl>
@@ -148,7 +163,7 @@ function renderTeacherGroupDashboard() {
 }
 
 function selectedTeacherGroup(selectId) {
-    return teacherGroups.find(group => group.id === document.getElementById(selectId)?.value) || teacherGroups[0];
+    return teacherGroups.find(group => group.id === document.getElementById(selectId)?.value) || null;
 }
 
 function getAttendanceKey(groupId, date, studentId) {
@@ -166,9 +181,14 @@ function getAttendanceRecord(groupId, date, student) {
 
 function renderTeacherAttendance() {
     const group = selectedTeacherGroup('attendance-group');
-    const date = document.getElementById('attendance-date')?.value || '';
     const body = document.getElementById('teacher-attendance-body');
     if (!body) return;
+    if (!group) {
+        body.innerHTML = `<tr><td colspan="6" class="teacher-empty-state">No hay grupos asignados para ${escapeTeacherHtml(formatTeacherPeriod(teacherPeriod))}.</td></tr>`;
+        document.getElementById('attendance-summary').textContent = 'No hay asistencia que mostrar.';
+        return;
+    }
+    const date = document.getElementById('attendance-date')?.value || '';
     body.innerHTML = teacherStudents.map((student, index) => {
         const record = getAttendanceRecord(group.id, date, student);
         return `<tr>
@@ -189,6 +209,7 @@ function attendanceOptions(selected) {
 
 function updateTeacherAttendance(studentId, field, value) {
     const group = selectedTeacherGroup('attendance-group');
+    if (!group) return;
     const date = document.getElementById('attendance-date').value;
     const student = teacherStudents.find(item => item.id === studentId);
     if (!student) return;
@@ -217,6 +238,7 @@ function setAttendanceToday() {
 
 function markAllPresent() {
     const group = selectedTeacherGroup('attendance-group');
+    if (!group) return;
     const date = document.getElementById('attendance-date').value;
     teacherStudents.forEach(student => { getAttendanceRecord(group.id, date, student).status = 'presente'; });
     renderTeacherAttendance();
@@ -235,6 +257,10 @@ function downloadTeacherFile(content, type, fileName) {
 
 function exportAttendanceCsv() {
     const group = selectedTeacherGroup('attendance-group');
+    if (!group) {
+        showTeacherFeedback(`No hay grupos asignados para ${formatTeacherPeriod(teacherPeriod)}.`);
+        return;
+    }
     const date = document.getElementById('attendance-date').value;
     const rows = [
         ['No.', 'Matrícula', 'Nombre del alumno', 'Estatus', 'Asistencia del cuatrimestre', 'Observaciones'],
@@ -249,11 +275,15 @@ function exportAttendanceCsv() {
 }
 
 function exportAttendancePdf() {
+    const group = selectedTeacherGroup('attendance-group');
+    if (!group) {
+        showTeacherFeedback(`No hay grupos asignados para ${formatTeacherPeriod(teacherPeriod)}.`);
+        return;
+    }
     if (!window.jspdf?.jsPDF) {
         showTeacherFeedback('No se pudo exportar el PDF porque la librería de reportes no está disponible.');
         return;
     }
-    const group = selectedTeacherGroup('attendance-group');
     const date = document.getElementById('attendance-date').value;
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
@@ -296,6 +326,11 @@ function renderTeacherGrades() {
     const body = document.getElementById('teacher-grades-body');
     if (!body) return;
     const group = selectedTeacherGroup('grades-group');
+    if (!group) {
+        body.innerHTML = `<tr><td colspan="7" class="teacher-empty-state">No hay grupos asignados para ${escapeTeacherHtml(formatTeacherPeriod(teacherPeriod))}.</td></tr>`;
+        document.getElementById('teacher-grade-metrics').innerHTML = '<article><span>Promedio del grupo</span><strong>—</strong><small>Sin grupo seleccionado</small></article><article><span>Porcentaje de aprobación</span><strong>—</strong><small>Sin grupo seleccionado</small></article><article><span>Actas pendientes de firma</span><strong>0</strong><small>Sin grupo seleccionado</small></article>';
+        return;
+    }
     const rows = teacherStudents.map((student, index) => {
         const partials = [1, 2, 3].map(partial => {
             const grade = calculateTeacherPartial(student, partial);
@@ -402,6 +437,10 @@ async function importTeacherGradesCsv(event) {
 
 function saveTeacherGradeDraft() {
     const group = selectedTeacherGroup('grades-group');
+    if (!group) {
+        document.getElementById('teacher-save-feedback').textContent = `No hay grupo asignado para ${formatTeacherPeriod(teacherPeriod)}.`;
+        return;
+    }
     const draft = {
         period: teacherPeriod,
         groupId: group.id,
