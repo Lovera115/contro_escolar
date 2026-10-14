@@ -1,0 +1,6 @@
+.env
+/app/vendor/
+/app/logs/*
+!/app/logs/.gitkeep
+/assets/uploads/*
+!/assets/uploads/.gitkeep

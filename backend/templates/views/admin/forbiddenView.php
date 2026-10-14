@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Acceso denegado · CEPTRI</title>
+</head>
+<body>
+    <main>
+        <h1>Acceso denegado</h1>
+        <p>Tu cuenta no tiene permiso para esta sección.</p>
+        <a href="<?= htmlspecialchars(URL . 'admin', ENT_QUOTES, 'UTF-8') ?>">Volver a administración</a>
+    </main>
+</body>
+</html>

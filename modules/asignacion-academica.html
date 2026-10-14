@@ -60,6 +60,8 @@
                 <div class="academic-form-field">
                     <label for="enrollment-period">Paso 2 · Cuatrimestre</label>
                     <select id="enrollment-period" required onchange="updateEnrollmentGroups()">
+                        <option value="todos">Todos los cuatrimestres</option>
+                        <option value="2026-1">2026-1-Enero-Abril</option>
                         <option value="2026-1">2026-1-Enero-Abril</option>
                         <option value="2026-2">2026-2-Mayo-Agosto</option>
                         <option value="2026-3">2026-3-Septiembre-Diciembre</option>
@@ -67,14 +69,18 @@
                 </div>
                 <div class="academic-form-field">
                     <label for="enrollment-group">Paso 2 · Grupo</label>
-                    <select id="enrollment-group" required disabled onchange="renderEnrollmentSubjects(); renderStudentEnrollments()">
+                    <select id="enrollment-group" required disabled
+                        onchange="renderEnrollmentSubjects(); renderStudentEnrollments()">
                         <option value="">Selecciona grupo...</option>
                     </select>
                 </div>
                 <div class="academic-form-field">
                     <label id="enrollment-subject-label">Paso 3 · Materias (selecciona una o varias)</label>
-                    <div id="enrollment-subject-options" class="academic-subject-options" role="group" aria-labelledby="enrollment-subject-label" aria-live="polite">Selecciona primero una especialidad y grupo.</div>
-                    <small id="enrollment-subject-selection-summary" class="academic-subject-selection-summary" aria-live="polite"></small>
+                    <div id="enrollment-subject-options" class="academic-subject-options" role="group"
+                        aria-labelledby="enrollment-subject-label" aria-live="polite">Selecciona primero una
+                        especialidad y grupo.</div>
+                    <small id="enrollment-subject-selection-summary" class="academic-subject-selection-summary"
+                        aria-live="polite"></small>
                 </div>
                 <div class="academic-form-field">
                     <label for="enrollment-registration">Alumno · Matrícula</label>
