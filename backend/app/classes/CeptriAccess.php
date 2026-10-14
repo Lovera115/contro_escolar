@@ -70,6 +70,17 @@ final class CeptriAccess
         return (new BeeRoleManager($user['role_slug']))->can($permission);
     }
 
+    public static function moduleAccess(array $user): array
+    {
+        return [
+            'admin' => self::can($user, 'admin-access'),
+            'users' => self::can($user, 'admin-access'),
+            'roles' => self::can($user, 'admin-access'),
+            'students' => self::can($user, 'students.manage'),
+            'academic' => self::can($user, 'academic.assign'),
+        ];
+    }
+
     public static function requirePermission(string $permission): array
     {
         $user = self::currentUser();

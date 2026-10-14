@@ -39,7 +39,15 @@ Desde la raíz del repositorio:
 
    Esta migración inicial requiere `APP_ENV=development` y es idempotente. No importa datos de los arreglos simulados de la aplicación anterior.
 
-6. Cuando estés listo para crear la cuenta administradora inicial, ejecuta el instalador interactivo desde la raíz. Pedirá usuario, correo, nombre y contraseña; la contraseña se escribe oculta y solo se almacena como hash:
+6. Crea el catálogo de materias y las tablas para grupos y asignaciones:
+
+   ```bash
+   php backend/bin/migrate-academics.php
+   ```
+
+   La migración requiere `APP_ENV=development`, es idempotente y agrega las materias base de las tres carreras. Los grupos, docentes y alumnos deben registrarse desde la interfaz; no se importan datos de demostración.
+
+7. Cuando estés listo para crear la cuenta administradora inicial, ejecuta el instalador interactivo desde la raíz. Pedirá usuario, correo, nombre y contraseña; la contraseña se escribe oculta y solo se almacena como hash:
 
    ```bash
    php backend/bin/install-rbac.php
@@ -47,22 +55,22 @@ Desde la raíz del repositorio:
 
    El instalador no reemplaza usuarios existentes. El acceso inicial se asigna al rol Administrador, que conserva acceso global desde el servidor.
 
-7. Desde `backend/`, inicia el servidor local:
+8. Desde `backend/`, inicia el servidor local:
 
    ```bash
    cd backend
    php -S 127.0.0.1:8081 router.php
    ```
 
-8. Abre `http://127.0.0.1:8081/`.
+9. Abre `http://127.0.0.1:8081/`.
 
-9. Para probar inicio/cierre de sesión y permisos HTTP, con el servidor activo ejecuta desde la raíz:
+10. Para probar inicio/cierre de sesión y permisos HTTP, con el servidor activo ejecuta desde la raíz:
 
    ```bash
    php backend/bin/smoke-auth.php
    ```
 
-   El test crea alumnos, cuentas y roles aleatorios, prueba las pantallas de administración y Control Escolar, y elimina los datos temporales al finalizar.
+   El test crea alumnos, grupos, cuentas y roles aleatorios, prueba las pantallas de administración y Control Escolar, genera el reporte PDF y elimina los datos temporales al finalizar.
 
 El archivo `.env` y `app/vendor/` están excluidos de Git. Nunca agregues credenciales al repositorio.
 
@@ -81,7 +89,10 @@ El manifiesto de Composer excluye `verot/class.upload.php`, que Composer bloquea
 - Autenticación web de Bee, cierre de sesión y panel administrativo protegido por permisos del servidor: implementados y probados.
 - Gestión administrativa: alta y edición de usuarios, cambio de rol y estado, restablecimiento de contraseña y excepciones individuales de permisos.
 - Gestión RBAC: alta de roles y asignación de permisos por rol; el permiso global `admin-access` está protegido y no se puede conceder desde las pantallas.
+- Navegación lateral responsiva en Administración, padrón y grupos; sus enlaces se muestran según los permisos efectivos de cada cuenta.
 - Padrón escolar: expedientes de alumnos e inscripciones por cuatrimestre con historial, búsqueda, validación de matrícula y estados académicos; requiere `students.manage`.
+- Grupos académicos: grupos por carrera y cuatrimestre, materias impartidas, asignación de docentes activos y reinscripción de alumnos a materias; requiere `academic.assign`.
+- Reportes de grupo descargables en PDF con docentes, materias y alumnos inscritos.
 - El padrón no crea todavía cuentas de acceso al portal ni importa los datos de demostración locales del sistema anterior.
-- Flujos HTTP administrativos, RBAC, CSRF, inscripción duplicada y acceso de Control Escolar: cubiertos por `php backend/bin/smoke-auth.php`.
-- Asignación a grupos/materias, revisión de documentos, portal del alumno y módulo de Finanzas: aún no se han migrado.
+- Flujos HTTP administrativos, RBAC, CSRF, menú por permisos, inscripción duplicada, asignaciones y reporte PDF: cubiertos por `php backend/bin/smoke-auth.php`.
+- Revisión de documentos, portal del alumno y módulo de Finanzas: aún no se han migrado.

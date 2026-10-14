@@ -94,6 +94,7 @@ class studentsController extends Controller implements ControllerInterface
         $this->setView('index');
         $this->setData([
             'user' => $user,
+            'moduleAccess' => CeptriAccess::moduleAccess($user),
             'csrfToken' => CSRF_TOKEN,
             'students' => $students,
             'selectedStudent' => $selectedStudent,

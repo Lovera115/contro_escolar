@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="<?= htmlspecialchars(CSS . 'admin.css', ENT_QUOTES, 'UTF-8') ?>">
 </head>
 <body>
+<div class="app-layout">
+<?php require INCLUDES . 'moduleSidebar.php'; ?>
 <main class="admin-shell">
     <header class="admin-header">
         <div>
@@ -114,5 +116,6 @@
         </section>
     <?php endif; ?>
 </main>
+</div>
 </body>
 </html>

@@ -7,10 +7,14 @@
     <link rel="stylesheet" href="<?= htmlspecialchars(CSS . 'admin.css', ENT_QUOTES, 'UTF-8') ?>">
 </head>
 <body>
+<div class="app-layout">
+<?php require INCLUDES . 'moduleSidebar.php'; ?>
 <main class="admin-shell">
     <header class="admin-header">
         <div>
-            <a class="back-link" href="<?= htmlspecialchars(URL . 'admin', ENT_QUOTES, 'UTF-8') ?>">← Administración</a>
+            <?php if ($d->moduleAccess->academic): ?>
+                <a class="back-link" href="<?= htmlspecialchars(URL . 'academic', ENT_QUOTES, 'UTF-8') ?>">← Grupos y asignación académica</a>
+            <?php endif; ?>
             <span class="eyebrow">CONTROL ESCOLAR</span>
             <h1>Padrón e inscripción de alumnos</h1>
             <p>Expedientes centrales e inscripciones organizadas por cuatrimestre.</p>
@@ -165,5 +169,6 @@
         </section>
     <?php endif; ?>
 </main>
+</div>
 </body>
 </html>

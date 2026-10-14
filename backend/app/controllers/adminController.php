@@ -24,7 +24,9 @@ class adminController extends Controller implements ControllerInterface
         $this->setView('index');
         $this->setData([
             'user' => $user,
+            'moduleAccess' => CeptriAccess::moduleAccess($user),
             'canManageStudents' => CeptriAccess::can($user, 'students.manage'),
+            'canManageAcademic' => CeptriAccess::can($user, 'academic.assign'),
             'csrfToken' => CSRF_TOKEN,
             'summary' => $summary,
         ]);
@@ -84,6 +86,7 @@ class adminController extends Controller implements ControllerInterface
         $this->setView('users');
         $this->setData([
             'user' => $currentUser,
+            'moduleAccess' => CeptriAccess::moduleAccess($currentUser),
             'csrfToken' => CSRF_TOKEN,
             'users' => $users,
             'roles' => $roles,
@@ -267,6 +270,7 @@ class adminController extends Controller implements ControllerInterface
         $this->setView('roles');
         $this->setData([
             'user' => $currentUser,
+            'moduleAccess' => CeptriAccess::moduleAccess($currentUser),
             'csrfToken' => CSRF_TOKEN,
             'roles' => $roles,
             'permissions' => $permissions,

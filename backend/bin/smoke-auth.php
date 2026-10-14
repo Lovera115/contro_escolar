@@ -44,11 +44,15 @@ $userId = null;
 $managedUserId = null;
 $studentId = null;
 $controlUserId = null;
+$teacherUserId = null;
+$academicGroupId = null;
 $roleSlug = 'smoke-' . bin2hex(random_bytes(6));
 $roleId = null;
 $managedPassword = 'Managed-' . bin2hex(random_bytes(12));
 $controlUsername = 'control-smoke-' . bin2hex(random_bytes(6));
 $controlPassword = 'Control-' . bin2hex(random_bytes(12));
+$teacherUsername = 'teacher-smoke-' . bin2hex(random_bytes(6));
+$teacherPassword = 'Teacher-' . bin2hex(random_bytes(12));
 $studentRegistration = 'SMK-' . strtoupper(bin2hex(random_bytes(4)));
 $curl = curl_init();
 $controlCurl = null;
@@ -78,6 +82,7 @@ function requestPage(CurlHandle $curl, string $url, ?array $form = null): array
     return [
         'status' => (int) curl_getinfo($curl, CURLINFO_RESPONSE_CODE),
         'url' => (string) curl_getinfo($curl, CURLINFO_EFFECTIVE_URL),
+        'content_type' => (string) curl_getinfo($curl, CURLINFO_CONTENT_TYPE),
         'body' => $body,
     ];
 }
@@ -115,6 +120,26 @@ try {
     $assignRole->execute(['user_id' => $userId, 'role_id' => (int) $adminRoleId]);
 
     $baseUrl = 'http://127.0.0.1:8081';
+    $teacherRoleId = $pdo->query("SELECT id FROM bee_roles WHERE slug = 'docente'")->fetchColumn();
+    if ($teacherRoleId === false) {
+        throw new RuntimeException('No existe el rol Docente para probar las asignaciones.');
+    }
+    $insertTeacher = $pdo->prepare(
+        'INSERT INTO bee_users (username, password, email, nombre_completo)
+         VALUES (:username, :password, :email, :name)'
+    );
+    $insertTeacher->execute([
+        'username' => $teacherUsername,
+        'password' => password_hash($teacherPassword . $_ENV['AUTH_SALT'], PASSWORD_BCRYPT),
+        'email' => $teacherUsername . '@example.invalid',
+        'name' => 'Docente temporal de prueba',
+    ]);
+    $teacherUserId = (int) $pdo->lastInsertId();
+    $assignTeacherRole = $pdo->prepare(
+        'INSERT INTO ceptri_user_roles (user_id, role_id) VALUES (:user_id, :role_id)'
+    );
+    $assignTeacherRole->execute(['user_id' => $teacherUserId, 'role_id' => (int) $teacherRoleId]);
+
     $loginPage = requestPage($curl, $baseUrl . '/auth');
     if ($loginPage['status'] !== 200) {
         throw new RuntimeException('La página de acceso no respondió HTTP 200.');
@@ -139,6 +164,12 @@ try {
     $rolesPage = requestPage($curl, $baseUrl . '/admin/roles');
     if ($usersPage['status'] !== 200 || !str_contains($usersPage['body'], 'Gestión de usuarios')) {
         throw new RuntimeException('La pantalla de gestión de usuarios no respondió correctamente.');
+    }
+    if (!str_contains($usersPage['body'], 'Padrón de alumnos') ||
+        !str_contains($usersPage['body'], 'Grupos y asignaciones') ||
+        !str_contains($usersPage['body'], 'aria-current="page"') ||
+        !str_contains($usersPage['body'], 'Roles y permisos')) {
+        throw new RuntimeException('El menú lateral de administración no muestra los módulos autorizados.');
     }
     if ($rolesPage['status'] !== 200 || !str_contains($rolesPage['body'], 'Roles y permisos')) {
         throw new RuntimeException('La matriz de roles y permisos no respondió correctamente.');
@@ -259,6 +290,163 @@ try {
         throw new RuntimeException('El registro del alumno no creó su inscripción inicial.');
     }
 
+    $academicPage = requestPage($curl, $baseUrl . '/academic?period=2026-1');
+    if ($academicPage['status'] !== 200 ||
+        !str_contains($academicPage['body'], 'Grupos y asignación académica')) {
+        throw new RuntimeException('La vista de grupos y asignación académica no respondió correctamente.');
+    }
+    $subjectQuery = $pdo->prepare(
+        'SELECT id FROM ceptri_academic_subjects
+         WHERE career = :career AND subject_name = :subject
+         LIMIT 1'
+    );
+    $subjectQuery->execute([
+        'career' => 'Especialidad en Derecho Administrativo (EDA)',
+        'subject' => 'Derecho Administrativo',
+    ]);
+    $academicSubjectId = (int) $subjectQuery->fetchColumn();
+    if ($academicSubjectId < 1) {
+        throw new RuntimeException('La migración académica no instaló el catálogo de materias esperado.');
+    }
+    $createGroup = requestPage($curl, $baseUrl . '/academic/save-group', [
+        'csrf' => csrfFromPage($academicPage['body']),
+        'career' => 'Especialidad en Derecho Administrativo (EDA)',
+        'period_key' => '2026-1',
+        'group_name' => 'Grupo temporal',
+        'subject_ids' => [(string) $academicSubjectId],
+    ]);
+    if ($createGroup['status'] !== 200 || !str_contains($createGroup['body'], 'Grupo temporal')) {
+        throw new RuntimeException('No se pudo crear un grupo académico con su materia.');
+    }
+    $findAcademicGroup = $pdo->prepare(
+        'SELECT id FROM ceptri_academic_groups
+         WHERE career = :career AND period_key = :period AND group_name = :group_name'
+    );
+    $findAcademicGroup->execute([
+        'career' => 'Especialidad en Derecho Administrativo (EDA)',
+        'period' => '2026-1',
+        'group_name' => 'Grupo temporal',
+    ]);
+    $academicGroupId = (int) $findAcademicGroup->fetchColumn();
+    if ($academicGroupId < 1) {
+        throw new RuntimeException('El grupo creado no quedó persistido en MariaDB.');
+    }
+    $academicPage = requestPage($curl, $baseUrl . '/academic?period=2026-1');
+    $duplicateGroup = requestPage($curl, $baseUrl . '/academic/save-group', [
+        'csrf' => csrfFromPage($academicPage['body']),
+        'career' => 'Especialidad en Derecho Administrativo (EDA)',
+        'period_key' => '2026-1',
+        'group_name' => 'Grupo temporal',
+        'subject_ids' => [(string) $academicSubjectId],
+    ]);
+    if ($duplicateGroup['status'] !== 200 ||
+        !str_contains($duplicateGroup['body'], 'Ya existe un grupo con ese nombre')) {
+        throw new RuntimeException('Se permitió duplicar un grupo para la misma carrera y cuatrimestre.');
+    }
+    $findGroupSubject = $pdo->prepare(
+        'SELECT id FROM ceptri_academic_group_subjects WHERE group_id = :group_id AND subject_id = :subject_id'
+    );
+    $findGroupSubject->execute(['group_id' => $academicGroupId, 'subject_id' => $academicSubjectId]);
+    $groupSubjectId = (int) $findGroupSubject->fetchColumn();
+    if ($groupSubjectId < 1) {
+        throw new RuntimeException('La materia no quedó relacionada al grupo creado.');
+    }
+
+    $groupPage = requestPage($curl, $baseUrl . '/academic?period=2026-1&group_id=' . $academicGroupId);
+    $assignTeacherResponse = requestPage($curl, $baseUrl . '/academic/assign-teacher', [
+        'csrf' => csrfFromPage($groupPage['body']),
+        'group_id' => (string) $academicGroupId,
+        'group_subject_id' => (string) $groupSubjectId,
+        'teacher_id' => (string) $teacherUserId,
+        'period_key' => '2026-1',
+    ]);
+    $checkTeacher = $pdo->prepare(
+        'SELECT teacher_user_id FROM ceptri_academic_teacher_assignments WHERE group_subject_id = :id'
+    );
+    $checkTeacher->execute(['id' => $groupSubjectId]);
+    if ($assignTeacherResponse['status'] !== 200 || (int) $checkTeacher->fetchColumn() !== $teacherUserId ||
+        !str_contains($assignTeacherResponse['body'], 'Docente temporal de prueba')) {
+        throw new RuntimeException('No se pudo asignar el docente activo a la materia del grupo.');
+    }
+
+    $findAcademicEnrollment = $pdo->prepare(
+        'SELECT id FROM ceptri_student_enrollments WHERE student_id = :student_id AND period_key = :period'
+    );
+    $findAcademicEnrollment->execute(['student_id' => $studentId, 'period' => '2026-1']);
+    $academicEnrollmentId = (int) $findAcademicEnrollment->fetchColumn();
+    $groupPage = requestPage($curl, $baseUrl . '/academic?period=2026-1&group_id=' . $academicGroupId);
+    $enrollSubject = requestPage($curl, $baseUrl . '/academic/enroll-students', [
+        'csrf' => csrfFromPage($groupPage['body']),
+        'group_id' => (string) $academicGroupId,
+        'enrollment_id' => (string) $academicEnrollmentId,
+        'period_key' => '2026-1',
+        'group_subject_ids' => [(string) $groupSubjectId],
+    ]);
+    $checkStudentSubject = $pdo->prepare(
+        'SELECT id FROM ceptri_academic_student_subjects
+         WHERE enrollment_id = :enrollment_id AND group_subject_id = :group_subject_id'
+    );
+    $checkStudentSubject->execute([
+        'enrollment_id' => $academicEnrollmentId,
+        'group_subject_id' => $groupSubjectId,
+    ]);
+    $studentSubjectId = (int) $checkStudentSubject->fetchColumn();
+    if ($enrollSubject['status'] !== 200 || $studentSubjectId < 1 ||
+        !str_contains($enrollSubject['body'], $studentRegistration)) {
+        throw new RuntimeException(sprintf(
+            'No se pudo inscribir el alumno elegible a la materia (HTTP %d, registro %d): %s',
+            $enrollSubject['status'],
+            $studentSubjectId,
+            trim(preg_replace('/\s+/', ' ', strip_tags(substr($enrollSubject['body'], -500))))
+        ));
+    }
+
+    $groupPage = requestPage($curl, $baseUrl . '/academic?period=2026-1&group_id=' . $academicGroupId);
+    $duplicateSubject = requestPage($curl, $baseUrl . '/academic/enroll-students', [
+        'csrf' => csrfFromPage($groupPage['body']),
+        'group_id' => (string) $academicGroupId,
+        'enrollment_id' => (string) $academicEnrollmentId,
+        'period_key' => '2026-1',
+        'group_subject_ids' => [(string) $groupSubjectId],
+    ]);
+    if ($duplicateSubject['status'] !== 200 ||
+        !str_contains($duplicateSubject['body'], 'ya tiene una o más de esas materias')) {
+        throw new RuntimeException('Se permitió duplicar la inscripción de materia del alumno.');
+    }
+
+    $report = requestPage($curl, $baseUrl . '/academic/report?group_id=' . $academicGroupId);
+    if ($report['status'] !== 200 || !str_starts_with($report['content_type'], 'application/pdf') ||
+        !str_starts_with($report['body'], '%PDF-')) {
+        throw new RuntimeException('El reporte PDF del grupo no se generó correctamente.');
+    }
+
+    $groupPage = requestPage($curl, $baseUrl . '/academic?period=2026-1&group_id=' . $academicGroupId);
+    $removeStudentSubject = requestPage($curl, $baseUrl . '/academic/remove-student-subject', [
+        'csrf' => csrfFromPage($groupPage['body']),
+        'id' => (string) $studentSubjectId,
+        'group_id' => (string) $academicGroupId,
+    ]);
+    $checkRemovedSubject = $pdo->prepare(
+        'SELECT COUNT(*) FROM ceptri_academic_student_subjects WHERE id = :id'
+    );
+    $checkRemovedSubject->execute(['id' => $studentSubjectId]);
+    if ($removeStudentSubject['status'] !== 200 || (int) $checkRemovedSubject->fetchColumn() !== 0) {
+        throw new RuntimeException('No se pudo retirar una inscripción académica.');
+    }
+    $groupPage = requestPage($curl, $baseUrl . '/academic?period=2026-1&group_id=' . $academicGroupId);
+    $removeTeacher = requestPage($curl, $baseUrl . '/academic/remove-teacher', [
+        'csrf' => csrfFromPage($groupPage['body']),
+        'id' => (string) $groupSubjectId,
+        'group_id' => (string) $academicGroupId,
+    ]);
+    $checkRemovedTeacher = $pdo->prepare(
+        'SELECT COUNT(*) FROM ceptri_academic_teacher_assignments WHERE group_subject_id = :id'
+    );
+    $checkRemovedTeacher->execute(['id' => $groupSubjectId]);
+    if ($removeTeacher['status'] !== 200 || (int) $checkRemovedTeacher->fetchColumn() !== 0) {
+        throw new RuntimeException('No se pudo retirar la asignación docente.');
+    }
+
     $studentPage = requestPage($curl, $baseUrl . '/students?edit=' . $studentId);
     $editStudent = requestPage($curl, $baseUrl . '/students/save', [
         'csrf' => csrfFromPage($studentPage['body']),
@@ -344,6 +532,10 @@ try {
             (string) parse_url($studentAccessDenied['url'], PHP_URL_PATH)
         ));
     }
+    $academicAccessDenied = requestPage($curl, $baseUrl . '/academic');
+    if ($academicAccessDenied['status'] !== 403) {
+        throw new RuntimeException('Una cuenta sin academic.assign pudo consultar grupos y asignaciones.');
+    }
 
     $controlRoleId = $pdo->query("SELECT id FROM bee_roles WHERE slug = 'control-escolar'")->fetchColumn();
     if ($controlRoleId === false) {
@@ -383,17 +575,28 @@ try {
         'password' => $controlPassword,
     ]);
     if ($controlLogin['status'] !== 200 ||
-        !str_ends_with($controlLogin['url'], '/students') ||
-        !str_contains($controlLogin['body'], 'Padrón e inscripción de alumnos')) {
-        throw new RuntimeException('El rol Control Escolar no fue redirigido a su módulo autorizado.');
+        !str_ends_with($controlLogin['url'], '/academic') ||
+        !str_contains($controlLogin['body'], 'Grupos y asignación académica') ||
+        !str_contains($controlLogin['body'], 'Padrón de alumnos') ||
+        !str_contains($controlLogin['body'], 'Grupos y asignaciones') ||
+        str_contains($controlLogin['body'], 'Usuarios y cuentas')) {
+        throw new RuntimeException(sprintf(
+            'El rol Control Escolar no recibió su menú autorizado (HTTP %d, ruta %s).',
+            $controlLogin['status'],
+            (string) parse_url($controlLogin['url'], PHP_URL_PATH)
+        ));
     }
     $controlHome = requestPage($controlCurl, $baseUrl . '/auth');
-    if ($controlHome['status'] !== 200 || !str_ends_with($controlHome['url'], '/students')) {
-        throw new RuntimeException('Una sesión de Control Escolar no regresó a su módulo al abrir /auth.');
+    if ($controlHome['status'] !== 200 || !str_ends_with($controlHome['url'], '/academic')) {
+        throw new RuntimeException('Una sesión de Control Escolar no regresó a grupos y asignaciones al abrir /auth.');
     }
 
-    echo "Pruebas HTTP OK: administración RBAC, padrón, cuatrimestres, CSRF, autorización y acceso Control Escolar.\n";
+    echo "Pruebas HTTP OK: administración RBAC, padrón, grupos, docentes, materias, reporte PDF, CSRF y acceso Control Escolar.\n";
 } finally {
+    if ($academicGroupId !== null) {
+        $deleteGroup = $pdo->prepare('DELETE FROM ceptri_academic_groups WHERE id = :group_id');
+        $deleteGroup->execute(['group_id' => $academicGroupId]);
+    }
     if ($controlUserId !== null) {
         $deleteControlUser = $pdo->prepare('DELETE FROM bee_users WHERE id = :user_id');
         $deleteControlUser->execute(['user_id' => $controlUserId]);
@@ -413,6 +616,10 @@ try {
     if ($userId !== null) {
         $deleteUser = $pdo->prepare('DELETE FROM bee_users WHERE id = :user_id');
         $deleteUser->execute(['user_id' => $userId]);
+    }
+    if ($teacherUserId !== null) {
+        $deleteTeacher = $pdo->prepare('DELETE FROM bee_users WHERE id = :user_id');
+        $deleteTeacher->execute(['user_id' => $teacherUserId]);
     }
     if ($controlCurl instanceof CurlHandle) {
         curl_close($controlCurl);

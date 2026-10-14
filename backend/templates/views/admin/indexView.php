@@ -7,7 +7,9 @@
     <link rel="stylesheet" href="<?= htmlspecialchars(CSS . 'admin.css', ENT_QUOTES, 'UTF-8') ?>">
 </head>
 <body>
-    <main class="admin-shell">
+    <div class="app-layout">
+        <?php require INCLUDES . 'moduleSidebar.php'; ?>
+        <main class="admin-shell">
         <header class="admin-header">
             <div>
                 <span class="eyebrow">SISTEMA DE CONTROL ESCOLAR</span>
@@ -45,12 +47,20 @@
                     <span aria-hidden="true">→</span>
                 </a>
             <?php endif; ?>
+            <?php if ($d->canManageAcademic): ?>
+                <a class="nav-card" href="<?= htmlspecialchars(URL . 'academic', ENT_QUOTES, 'UTF-8') ?>">
+                    <span class="nav-icon" aria-hidden="true">04</span>
+                    <span><strong>Grupos y asignación académica</strong><small>Organizar materias, docentes e inscripciones.</small></span>
+                    <span aria-hidden="true">→</span>
+                </a>
+            <?php endif; ?>
         </nav>
 
         <section class="notice-card">
             <h2>Migración gradual</h2>
-            <p>La administración, el RBAC y el padrón de alumnos ya se guardan en MariaDB desde el servidor. Las pantallas originales permanecen disponibles mientras se migran las demás funciones.</p>
+            <p>La administración, el RBAC, el padrón y las asignaciones académicas ya se guardan en MariaDB desde el servidor. Las pantallas originales permanecen disponibles mientras se migran las demás funciones.</p>
         </section>
-    </main>
+        </main>
+    </div>
 </body>
 </html>
