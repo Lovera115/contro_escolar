@@ -4,3 +4,5 @@
 !/app/logs/.gitkeep
 /assets/uploads/*
 !/assets/uploads/.gitkeep
+/private/student-documents/*
+!/private/student-documents/.gitkeep

@@ -54,6 +54,20 @@
                     <span aria-hidden="true">→</span>
                 </a>
             <?php endif; ?>
+            <?php if ($d->canReviewRecords): ?>
+                <a class="nav-card" href="<?= htmlspecialchars(URL . 'records', ENT_QUOTES, 'UTF-8') ?>">
+                    <span class="nav-icon" aria-hidden="true">05</span>
+                    <span><strong>Revisión de expedientes</strong><small>Validar documentos de inscripción.</small></span>
+                    <span aria-hidden="true">→</span>
+                </a>
+            <?php endif; ?>
+            <?php if ($d->canViewFinance): ?>
+                <a class="nav-card" href="<?= htmlspecialchars(URL . 'finance', ENT_QUOTES, 'UTF-8') ?>">
+                    <span class="nav-icon" aria-hidden="true">06</span>
+                    <span><strong>Finanzas</strong><small>Estados de cuenta y pagos por cuatrimestre.</small></span>
+                    <span aria-hidden="true">→</span>
+                </a>
+            <?php endif; ?>
         </nav>
 
         <section class="notice-card">

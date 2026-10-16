@@ -44,18 +44,24 @@ $userId = null;
 $managedUserId = null;
 $studentId = null;
 $controlUserId = null;
+$financeUserId = null;
 $teacherUserId = null;
+$documentTempPath = null;
+$documentFileKeys = [];
 $academicGroupId = null;
 $roleSlug = 'smoke-' . bin2hex(random_bytes(6));
 $roleId = null;
 $managedPassword = 'Managed-' . bin2hex(random_bytes(12));
 $controlUsername = 'control-smoke-' . bin2hex(random_bytes(6));
 $controlPassword = 'Control-' . bin2hex(random_bytes(12));
+$financeUsername = 'finance-smoke-' . bin2hex(random_bytes(6));
+$financePassword = 'Finance-' . bin2hex(random_bytes(12));
 $teacherUsername = 'teacher-smoke-' . bin2hex(random_bytes(6));
 $teacherPassword = 'Teacher-' . bin2hex(random_bytes(12));
 $studentRegistration = 'SMK-' . strtoupper(bin2hex(random_bytes(4)));
 $curl = curl_init();
 $controlCurl = null;
+$financeCurl = null;
 
 if ($curl === false) {
     throw new RuntimeException('No se pudo iniciar curl para la prueba HTTP.');
@@ -73,7 +79,12 @@ function requestPage(CurlHandle $curl, string $url, ?array $form = null): array
 {
     curl_setopt($curl, CURLOPT_URL, $url);
     curl_setopt($curl, CURLOPT_POST, $form !== null);
-    curl_setopt($curl, CURLOPT_POSTFIELDS, $form === null ? null : http_build_query($form));
+    $multipart = $form !== null && ($form['document_file'] ?? null) instanceof CURLFile;
+    curl_setopt(
+        $curl,
+        CURLOPT_POSTFIELDS,
+        $form === null ? null : ($multipart ? $form : http_build_query($form))
+    );
     $body = curl_exec($curl);
     if ($body === false) {
         throw new RuntimeException('Fallo de prueba HTTP: ' . curl_error($curl));
@@ -289,6 +300,241 @@ try {
     if ((int) $checkInitialEnrollment->fetchColumn() !== 1) {
         throw new RuntimeException('El registro del alumno no creó su inscripción inicial.');
     }
+    $findFinancialAccount = $pdo->prepare(
+        'SELECT a.id, a.amount_due, a.status
+         FROM ceptri_financial_accounts a
+         INNER JOIN ceptri_student_enrollments e ON e.id = a.enrollment_id
+         WHERE e.student_id = :student_id AND e.period_key = :period'
+    );
+    $findFinancialAccount->execute(['student_id' => $studentId, 'period' => '2026-1']);
+    $financialAccount = $findFinancialAccount->fetch(PDO::FETCH_ASSOC);
+    if (!$financialAccount || $financialAccount['status'] !== 'adeudo' ||
+        (float) $financialAccount['amount_due'] !== 0.0) {
+        throw new RuntimeException('La inscripción inicial no generó una cuenta con estado Adeudo.');
+    }
+    $accountId = (int) $financialAccount['id'];
+    $financePage = requestPage($curl, $baseUrl . '/finance?account_id=' . $accountId);
+    if ($financePage['status'] !== 200 ||
+        !str_contains($financePage['body'], 'Estados de cuenta y pagos') ||
+        !str_contains($financePage['body'], 'Adeudo')) {
+        throw new RuntimeException('La pantalla de Finanzas no mostró la cuenta recién creada con adeudo.');
+    }
+    $saveFinancialAccount = requestPage($curl, $baseUrl . '/finance/save-account', [
+        'csrf' => csrfFromPage($financePage['body']),
+        'account_id' => (string) $accountId,
+        'amount_due' => '1000.00',
+        'status' => 'adeudo',
+        'status_note' => '',
+    ]);
+    $checkFinancialAccount = $pdo->prepare(
+        'SELECT amount_due, status FROM ceptri_financial_accounts WHERE id = :id'
+    );
+    $checkFinancialAccount->execute(['id' => $accountId]);
+    $accountAfterEdit = $checkFinancialAccount->fetch(PDO::FETCH_ASSOC);
+    if ($saveFinancialAccount['status'] !== 200 || !$accountAfterEdit ||
+        (float) $accountAfterEdit['amount_due'] !== 1000.0 || $accountAfterEdit['status'] !== 'adeudo') {
+        throw new RuntimeException(sprintf(
+            'No se pudieron editar los cargos individuales del estado de cuenta (HTTP %d; cuota %s; estado %s; respuesta %s).',
+            $saveFinancialAccount['status'],
+            (string) ($accountAfterEdit['amount_due'] ?? 'sin cuenta'),
+            (string) ($accountAfterEdit['status'] ?? 'sin cuenta'),
+            trim(preg_replace('/\s+/', ' ', strip_tags(substr($saveFinancialAccount['body'], -400))))
+        ));
+    }
+
+    $paymentFolio = 'SMK-' . strtoupper(bin2hex(random_bytes(5)));
+    $financePage = requestPage($curl, $baseUrl . '/finance?account_id=' . $accountId);
+    $registerPayment = requestPage($curl, $baseUrl . '/finance/register-payment', [
+        'csrf' => csrfFromPage($financePage['body']),
+        'account_id' => (string) $accountId,
+        'folio' => $paymentFolio,
+        'concept' => 'Pago parcial de prueba',
+        'amount' => '250.00',
+        'paid_on' => date('Y-m-d'),
+        'payment_method' => 'transferencia',
+        'payment_reference' => 'SMOKE-REF-1',
+        'notes' => 'Prueba HTTP temporal',
+    ]);
+    $findFinancialPayment = $pdo->prepare(
+        'SELECT id, amount, status FROM ceptri_financial_payments WHERE folio = :folio'
+    );
+    $findFinancialPayment->execute(['folio' => $paymentFolio]);
+    $financialPayment = $findFinancialPayment->fetch(PDO::FETCH_ASSOC);
+    if ($registerPayment['status'] !== 200 || !$financialPayment ||
+        (float) $financialPayment['amount'] !== 250.0 || $financialPayment['status'] !== 'registrado') {
+        throw new RuntimeException('No se pudo registrar un pago con folio y referencia.');
+    }
+    $paymentId = (int) $financialPayment['id'];
+
+    $editPaymentPage = requestPage(
+        $curl,
+        $baseUrl . '/finance?account_id=' . $accountId . '&edit_payment=' . $paymentId
+    );
+    if ($editPaymentPage['status'] !== 200 ||
+        !str_contains($editPaymentPage['body'], 'Corregir pago') ||
+        !str_contains($editPaymentPage['body'], 'Pago parcial de prueba')) {
+        throw new RuntimeException('No se pudo abrir el formulario de corrección del pago.');
+    }
+    $editFinancialPayment = requestPage($curl, $baseUrl . '/finance/edit-payment', [
+        'csrf' => csrfFromPage($editPaymentPage['body']),
+        'account_id' => (string) $accountId,
+        'payment_id' => (string) $paymentId,
+        'folio' => $paymentFolio,
+        'concept' => 'Pago corregido de prueba',
+        'amount' => '200.00',
+        'paid_on' => date('Y-m-d'),
+        'payment_method' => 'transferencia',
+        'payment_reference' => 'SMOKE-REF-2',
+        'notes' => 'Referencia corregida',
+    ]);
+    $findFinancialPayment->execute(['folio' => $paymentFolio]);
+    $financialPayment = $findFinancialPayment->fetch(PDO::FETCH_ASSOC);
+    if ($editFinancialPayment['status'] !== 200 || !$financialPayment ||
+        (float) $financialPayment['amount'] !== 200.0) {
+        throw new RuntimeException('No se pudo corregir un pago vigente.');
+    }
+
+    $historyPdf = requestPage($curl, $baseUrl . '/finance/history-pdf?student_id=' . $studentId);
+    if ($historyPdf['status'] !== 200 || !str_starts_with($historyPdf['content_type'], 'application/pdf') ||
+        !str_starts_with($historyPdf['body'], '%PDF-')) {
+        throw new RuntimeException('No se pudo descargar el historial de pagos en PDF.');
+    }
+
+    $financePage = requestPage($curl, $baseUrl . '/finance?account_id=' . $accountId);
+    $voidPayment = requestPage($curl, $baseUrl . '/finance/void-payment', [
+        'csrf' => csrfFromPage($financePage['body']),
+        'account_id' => (string) $accountId,
+        'payment_id' => (string) $paymentId,
+        'void_reason' => 'Anulación de prueba HTTP.',
+    ]);
+    $checkPaymentVoid = $pdo->prepare(
+        'SELECT status, void_reason FROM ceptri_financial_payments WHERE id = :id'
+    );
+    $checkPaymentVoid->execute(['id' => $paymentId]);
+    $voidedPayment = $checkPaymentVoid->fetch(PDO::FETCH_ASSOC);
+    if ($voidPayment['status'] !== 200 || !$voidedPayment ||
+        $voidedPayment['status'] !== 'anulado' || $voidedPayment['void_reason'] !== 'Anulación de prueba HTTP.') {
+        throw new RuntimeException('No se pudo anular el pago preservando el motivo.');
+    }
+
+    $financePage = requestPage($curl, $baseUrl . '/finance?account_id=' . $accountId);
+    $settlementFolio = 'SMK-' . strtoupper(bin2hex(random_bytes(5)));
+    $settleAccount = requestPage($curl, $baseUrl . '/finance/register-payment', [
+        'csrf' => csrfFromPage($financePage['body']),
+        'account_id' => (string) $accountId,
+        'folio' => $settlementFolio,
+        'concept' => 'Liquidación de prueba',
+        'amount' => '1000.00',
+        'paid_on' => date('Y-m-d'),
+        'payment_method' => 'efectivo',
+        'payment_reference' => 'SMOKE-REF-3',
+        'notes' => '',
+    ]);
+    $checkFinancialAccount->execute(['id' => $accountId]);
+    $settledAccount = $checkFinancialAccount->fetch(PDO::FETCH_ASSOC);
+    if ($settleAccount['status'] !== 200 || !$settledAccount ||
+        $settledAccount['status'] !== 'al_corriente') {
+        throw new RuntimeException('Al liquidar el saldo, la cuenta no quedó al corriente.');
+    }
+    $financePage = requestPage($curl, $baseUrl . '/finance?account_id=' . $accountId);
+    $setAccountAgreement = requestPage($curl, $baseUrl . '/finance/save-account', [
+        'csrf' => csrfFromPage($financePage['body']),
+        'account_id' => (string) $accountId,
+        'amount_due' => '1000.00',
+        'status' => 'convenio',
+        'status_note' => 'Convenio de prueba',
+    ]);
+    $checkFinancialAccount->execute(['id' => $accountId]);
+    $agreementAccount = $checkFinancialAccount->fetch(PDO::FETCH_ASSOC);
+    if ($setAccountAgreement['status'] !== 200 || !$agreementAccount ||
+        $agreementAccount['status'] !== 'convenio') {
+        throw new RuntimeException('No se pudo editar el estado de cuenta a convenio.');
+    }
+    $countFinanceEvents = $pdo->prepare(
+        'SELECT COUNT(*) FROM ceptri_financial_events WHERE account_id = :account_id'
+    );
+    $countFinanceEvents->execute(['account_id' => $accountId]);
+    if ((int) $countFinanceEvents->fetchColumn() < 5) {
+        throw new RuntimeException('No quedaron auditados los cambios y movimientos financieros de la prueba.');
+    }
+
+    $recordsPage = requestPage($curl, $baseUrl . '/records?student_id=' . $studentId);
+    if ($recordsPage['status'] !== 200 || !str_contains($recordsPage['body'], 'Revisión de expedientes')) {
+        throw new RuntimeException('La pantalla de revisión de expedientes no respondió correctamente.');
+    }
+    $documentTempPath = tempnam(sys_get_temp_dir(), 'ceptri-document-smoke-');
+    if ($documentTempPath === false ||
+        file_put_contents($documentTempPath, "%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\n%%EOF\n") === false) {
+        throw new RuntimeException('No se pudo crear el PDF temporal de prueba.');
+    }
+    $uploadDocument = requestPage($curl, $baseUrl . '/records/upload', [
+        'csrf' => csrfFromPage($recordsPage['body']),
+        'student_id' => (string) $studentId,
+        'requirement_id' => 'acta',
+        'document_file' => new CURLFile($documentTempPath, 'application/pdf', 'acta-smoke.pdf'),
+    ]);
+    if ($uploadDocument['status'] !== 200 || !str_contains($uploadDocument['body'], 'quedó en revisión')) {
+        throw new RuntimeException('No se pudo cargar un documento para revisión.');
+    }
+    $findDocument = $pdo->prepare(
+        'SELECT id, file_key, status FROM ceptri_student_documents
+         WHERE student_id = :student_id AND requirement_id = :requirement_id ORDER BY id DESC LIMIT 1'
+    );
+    $findDocument->execute(['student_id' => $studentId, 'requirement_id' => 'acta']);
+    $document = $findDocument->fetch(PDO::FETCH_ASSOC);
+    if (!$document || $document['status'] !== 'en_revision') {
+        throw new RuntimeException('El documento no quedó persistido con estado En revisión.');
+    }
+    $documentFileKeys[] = $document['file_key'];
+    $viewDocument = requestPage($curl, $baseUrl . '/records/file?id=' . (int) $document['id']);
+    if ($viewDocument['status'] !== 200 ||
+        !str_contains($viewDocument['content_type'], 'application/pdf') ||
+        !str_starts_with($viewDocument['body'], '%PDF-1.4')) {
+        throw new RuntimeException('El archivo privado no se pudo consultar mediante la ruta autorizada.');
+    }
+
+    $recordsPage = requestPage($curl, $baseUrl . '/records?student_id=' . $studentId);
+    $approveDocument = requestPage($curl, $baseUrl . '/records/decide', [
+        'csrf' => csrfFromPage($recordsPage['body']),
+        'student_id' => (string) $studentId,
+        'document_id' => (string) $document['id'],
+        'decision' => 'aprobado',
+        'observation' => '',
+    ]);
+    $checkDocumentStatus = $pdo->prepare(
+        'SELECT status FROM ceptri_student_documents WHERE id = :id'
+    );
+    $checkDocumentStatus->execute(['id' => $document['id']]);
+    if ($approveDocument['status'] !== 200 || $checkDocumentStatus->fetchColumn() !== 'aprobado') {
+        throw new RuntimeException('No se pudo aprobar el documento ni guardar la decisión.');
+    }
+
+    $recordsPage = requestPage($curl, $baseUrl . '/records?student_id=' . $studentId);
+    $uploadDocument = requestPage($curl, $baseUrl . '/records/upload', [
+        'csrf' => csrfFromPage($recordsPage['body']),
+        'student_id' => (string) $studentId,
+        'requirement_id' => 'acta',
+        'document_file' => new CURLFile($documentTempPath, 'application/pdf', 'acta-smoke.pdf'),
+    ]);
+    $findDocument->execute(['student_id' => $studentId, 'requirement_id' => 'acta']);
+    $replacementDocument = $findDocument->fetch(PDO::FETCH_ASSOC);
+    if ($uploadDocument['status'] !== 200 || !$replacementDocument ||
+        $replacementDocument['status'] !== 'en_revision' || $replacementDocument['id'] === $document['id']) {
+        throw new RuntimeException('No se pudo guardar una nueva versión del documento.');
+    }
+    $documentFileKeys[] = $replacementDocument['file_key'];
+    $recordsPage = requestPage($curl, $baseUrl . '/records?student_id=' . $studentId);
+    $rejectDocument = requestPage($curl, $baseUrl . '/records/decide', [
+        'csrf' => csrfFromPage($recordsPage['body']),
+        'student_id' => (string) $studentId,
+        'document_id' => (string) $replacementDocument['id'],
+        'decision' => 'rechazado',
+        'observation' => 'El documento de prueba requiere corrección.',
+    ]);
+    $checkDocumentStatus->execute(['id' => $replacementDocument['id']]);
+    if ($rejectDocument['status'] !== 200 || $checkDocumentStatus->fetchColumn() !== 'rechazado') {
+        throw new RuntimeException('No se pudo rechazar el documento ni guardar el motivo.');
+    }
 
     $academicPage = requestPage($curl, $baseUrl . '/academic?period=2026-1');
     if ($academicPage['status'] !== 200 ||
@@ -480,6 +726,11 @@ try {
     if ((int) $checkEnrollmentCount->fetchColumn() !== 2) {
         throw new RuntimeException('La inscripción posterior no quedó registrada.');
     }
+    $findFinancialAccount->execute(['student_id' => $studentId, 'period' => '2027-2']);
+    $newPeriodAccount = $findFinancialAccount->fetch(PDO::FETCH_ASSOC);
+    if (!$newPeriodAccount || $newPeriodAccount['status'] !== 'adeudo') {
+        throw new RuntimeException('La reinscripción no generó una cuenta de adeudo para el nuevo cuatrimestre.');
+    }
 
     $studentPage = requestPage($curl, $baseUrl . '/students?edit=' . $studentId);
     $duplicateEnrollment = requestPage($curl, $baseUrl . '/students/enroll', [
@@ -536,6 +787,21 @@ try {
     if ($academicAccessDenied['status'] !== 403) {
         throw new RuntimeException('Una cuenta sin academic.assign pudo consultar grupos y asignaciones.');
     }
+    $financeAccessDenied = requestPage($curl, $baseUrl . '/finance');
+    if ($financeAccessDenied['status'] !== 403) {
+        throw new RuntimeException('Una cuenta sin finance.view pudo consultar cuentas financieras.');
+    }
+    $recordsAccessDenied = requestPage($curl, $baseUrl . '/records');
+    if ($recordsAccessDenied['status'] !== 403) {
+        throw new RuntimeException('Una cuenta sin records.review pudo consultar expedientes escolares.');
+    }
+    $documentFileAccessDenied = requestPage(
+        $curl,
+        $baseUrl . '/records/file?id=' . (int) $document['id']
+    );
+    if ($documentFileAccessDenied['status'] !== 403) {
+        throw new RuntimeException('Una cuenta sin records.review pudo consultar un archivo documental privado.');
+    }
 
     $controlRoleId = $pdo->query("SELECT id FROM bee_roles WHERE slug = 'control-escolar'")->fetchColumn();
     if ($controlRoleId === false) {
@@ -577,6 +843,7 @@ try {
     if ($controlLogin['status'] !== 200 ||
         !str_ends_with($controlLogin['url'], '/academic') ||
         !str_contains($controlLogin['body'], 'Grupos y asignación académica') ||
+        !str_contains($controlLogin['body'], 'Revisión de expedientes') ||
         !str_contains($controlLogin['body'], 'Padrón de alumnos') ||
         !str_contains($controlLogin['body'], 'Grupos y asignaciones') ||
         str_contains($controlLogin['body'], 'Usuarios y cuentas')) {
@@ -586,13 +853,87 @@ try {
             (string) parse_url($controlLogin['url'], PHP_URL_PATH)
         ));
     }
+    $controlFinanceAccess = requestPage($controlCurl, $baseUrl . '/finance');
+    if (str_contains($controlLogin['body'], '>Finanzas</span>') ||
+        $controlFinanceAccess['status'] !== 403) {
+        throw new RuntimeException('El rol Control Escolar recibió acceso no autorizado a Finanzas.');
+    }
     $controlHome = requestPage($controlCurl, $baseUrl . '/auth');
     if ($controlHome['status'] !== 200 || !str_ends_with($controlHome['url'], '/academic')) {
         throw new RuntimeException('Una sesión de Control Escolar no regresó a grupos y asignaciones al abrir /auth.');
     }
 
-    echo "Pruebas HTTP OK: administración RBAC, padrón, grupos, docentes, materias, reporte PDF, CSRF y acceso Control Escolar.\n";
+    $financeRoleId = $pdo->query("SELECT id FROM bee_roles WHERE slug = 'finanzas'")->fetchColumn();
+    if ($financeRoleId === false) {
+        throw new RuntimeException('No existe el rol Finanzas para comprobar el acceso al módulo.');
+    }
+    $insertFinanceUser = $pdo->prepare(
+        'INSERT INTO bee_users (username, password, email, nombre_completo)
+         VALUES (:username, :password, :email, :name)'
+    );
+    $insertFinanceUser->execute([
+        'username' => $financeUsername,
+        'password' => password_hash($financePassword . $_ENV['AUTH_SALT'], PASSWORD_BCRYPT),
+        'email' => $financeUsername . '@example.invalid',
+        'name' => 'Cuenta temporal de Finanzas',
+    ]);
+    $financeUserId = (int) $pdo->lastInsertId();
+    $assignFinanceRole = $pdo->prepare(
+        'INSERT INTO ceptri_user_roles (user_id, role_id) VALUES (:user_id, :role_id)'
+    );
+    $assignFinanceRole->execute(['user_id' => $financeUserId, 'role_id' => (int) $financeRoleId]);
+
+    $financeCurl = curl_init();
+    if ($financeCurl === false) {
+        throw new RuntimeException('No se pudo iniciar la sesión HTTP de prueba para Finanzas.');
+    }
+    curl_setopt_array($financeCurl, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_COOKIEFILE => '',
+        CURLOPT_TIMEOUT => 10,
+        CURLOPT_USERAGENT => 'CEPTRI local finance smoke test',
+    ]);
+    $financeLoginPage = requestPage($financeCurl, $baseUrl . '/auth');
+    $financeLogin = requestPage($financeCurl, $baseUrl . '/auth/login', [
+        'csrf' => csrfFromPage($financeLoginPage['body']),
+        'identifier' => $financeUsername,
+        'password' => $financePassword,
+    ]);
+    if ($financeLogin['status'] !== 200 ||
+        !str_ends_with($financeLogin['url'], '/finance') ||
+        !str_contains($financeLogin['body'], 'Estados de cuenta y pagos') ||
+        !str_contains($financeLogin['body'], '>Finanzas</span>')) {
+        throw new RuntimeException(sprintf(
+            'El rol Finanzas no recibió su espacio autorizado (HTTP %d, ruta %s).',
+            $financeLogin['status'],
+            (string) parse_url($financeLogin['url'], PHP_URL_PATH)
+        ));
+    }
+    $financeStudentHistory = requestPage($financeCurl, $baseUrl . '/finance/history-pdf?student_id=' . $studentId);
+    if ($financeStudentHistory['status'] !== 200 ||
+        !str_starts_with($financeStudentHistory['content_type'], 'application/pdf') ||
+        !str_starts_with($financeStudentHistory['body'], '%PDF-')) {
+        throw new RuntimeException('El rol Finanzas no pudo exportar el historial de pagos permitido.');
+    }
+    if (requestPage($financeCurl, $baseUrl . '/students')['status'] !== 403 ||
+        requestPage($financeCurl, $baseUrl . '/academic')['status'] !== 403 ||
+        requestPage($financeCurl, $baseUrl . '/records')['status'] !== 403) {
+        throw new RuntimeException('El rol Finanzas recibió acceso a un módulo fuera de sus permisos.');
+    }
+
+    echo "Pruebas HTTP OK: administración RBAC, padrón, expedientes, Finanzas cuatrimestrales, pagos auditados, PDF, grupos, docentes, materias, CSRF y permisos.\n";
 } finally {
+    if ($studentId !== null && $documentFileKeys) {
+        $storageDirectory = dirname(__DIR__) . '/private/student-documents';
+        foreach (array_unique($documentFileKeys) as $fileKey) {
+            if (preg_match('/\A[a-f0-9]{64}\.(pdf|jpg|jpeg|png)\z/', $fileKey) &&
+                is_file($storageDirectory . DIRECTORY_SEPARATOR . $fileKey) &&
+                !unlink($storageDirectory . DIRECTORY_SEPARATOR . $fileKey)) {
+                error_log('No se pudo limpiar el archivo de prueba ' . $fileKey);
+            }
+        }
+    }
     if ($academicGroupId !== null) {
         $deleteGroup = $pdo->prepare('DELETE FROM ceptri_academic_groups WHERE id = :group_id');
         $deleteGroup->execute(['group_id' => $academicGroupId]);
@@ -601,9 +942,16 @@ try {
         $deleteControlUser = $pdo->prepare('DELETE FROM bee_users WHERE id = :user_id');
         $deleteControlUser->execute(['user_id' => $controlUserId]);
     }
+    if ($financeUserId !== null) {
+        $deleteFinanceUser = $pdo->prepare('DELETE FROM bee_users WHERE id = :user_id');
+        $deleteFinanceUser->execute(['user_id' => $financeUserId]);
+    }
     if ($studentId !== null) {
         $deleteStudent = $pdo->prepare('DELETE FROM ceptri_students WHERE id = :student_id');
         $deleteStudent->execute(['student_id' => $studentId]);
+    }
+    if (is_string($documentTempPath) && is_file($documentTempPath) && !unlink($documentTempPath)) {
+        error_log('No se pudo eliminar el PDF temporal de prueba.');
     }
     if ($managedUserId !== null) {
         $deleteManagedUser = $pdo->prepare('DELETE FROM bee_users WHERE id = :user_id');
@@ -623,6 +971,9 @@ try {
     }
     if ($controlCurl instanceof CurlHandle) {
         curl_close($controlCurl);
+    }
+    if ($financeCurl instanceof CurlHandle) {
+        curl_close($financeCurl);
     }
     curl_close($curl);
 }

@@ -197,6 +197,7 @@ class studentsController extends Controller implements ControllerInterface
                     'period_key' => $initialPeriod,
                     'created_by' => (int) $user['id'],
                 ]);
+                $this->createFinancialAccount($pdo, (int) $pdo->lastInsertId(), (int) $user['id']);
             }
             $pdo->commit();
         } catch (Throwable $exception) {
@@ -249,6 +250,7 @@ class studentsController extends Controller implements ControllerInterface
                 'period_key' => $period,
                 'created_by' => (int) $user['id'],
             ]);
+            $this->createFinancialAccount($pdo, (int) $pdo->lastInsertId(), (int) $user['id']);
             $pdo->commit();
         } catch (Throwable $exception) {
             if ($pdo->inTransaction()) {
@@ -284,6 +286,19 @@ class studentsController extends Controller implements ControllerInterface
         $month = (int) date('n');
         $number = $month <= 4 ? 1 : ($month <= 8 ? 2 : 3);
         return sprintf('%04d-%d', (int) date('Y'), $number);
+    }
+
+    private function createFinancialAccount(PDO $pdo, int $enrollmentId, int $userId): void
+    {
+        $account = $pdo->prepare(
+            "INSERT INTO ceptri_financial_accounts (enrollment_id, status, created_by, updated_by)
+             VALUES (:enrollment_id, 'adeudo', :created_by, :updated_by)"
+        );
+        $account->execute([
+            'enrollment_id' => $enrollmentId,
+            'created_by' => $userId,
+            'updated_by' => $userId,
+        ]);
     }
 
     private function periodLabel(string $period): string

@@ -6,9 +6,18 @@ $activeModule = $d->controller === 'admin'
         default => 'admin',
     }
     : $d->controller;
+$homePath = $d->moduleAccess->admin
+    ? 'admin'
+    : ($d->moduleAccess->academic
+        ? 'academic'
+        : ($d->moduleAccess->students
+            ? 'students'
+            : ($d->moduleAccess->records
+                ? 'records'
+                : 'finance')));
 ?>
 <aside class="app-sidebar" aria-label="Navegación principal">
-    <a class="sidebar-brand" href="<?= htmlspecialchars(URL . ($d->moduleAccess->admin ? 'admin' : ($d->moduleAccess->academic ? 'academic' : 'students')), ENT_QUOTES, 'UTF-8') ?>">
+    <a class="sidebar-brand" href="<?= htmlspecialchars(URL . $homePath, ENT_QUOTES, 'UTF-8') ?>">
         <span class="sidebar-brand-mark" aria-hidden="true">C</span>
         <span><strong>CEPTRI</strong><small>Control escolar</small></span>
     </a>
@@ -33,15 +42,25 @@ $activeModule = $d->controller === 'admin'
                 <span class="sidebar-link-icon" aria-hidden="true">02</span><span>Grupos y asignaciones</span>
             </a>
         <?php endif; ?>
+        <?php if ($d->moduleAccess->records): ?>
+            <a class="sidebar-link <?= $activeModule === 'records' ? 'sidebar-link-active' : '' ?>" href="<?= htmlspecialchars(URL . 'records', ENT_QUOTES, 'UTF-8') ?>" <?= $activeModule === 'records' ? 'aria-current="page"' : '' ?>>
+                <span class="sidebar-link-icon" aria-hidden="true">03</span><span>Revisión de expedientes</span>
+            </a>
+        <?php endif; ?>
+        <?php if ($d->moduleAccess->finance): ?>
+            <a class="sidebar-link <?= $activeModule === 'finance' ? 'sidebar-link-active' : '' ?>" href="<?= htmlspecialchars(URL . 'finance', ENT_QUOTES, 'UTF-8') ?>" <?= $activeModule === 'finance' ? 'aria-current="page"' : '' ?>>
+                <span class="sidebar-link-icon" aria-hidden="true">04</span><span>Finanzas</span>
+            </a>
+        <?php endif; ?>
         <?php if ($d->moduleAccess->users): ?>
             <span class="sidebar-section-label sidebar-admin-label">ADMINISTRACIÓN</span>
             <a class="sidebar-link <?= $activeModule === 'users' ? 'sidebar-link-active' : '' ?>" href="<?= htmlspecialchars(URL . 'admin/users', ENT_QUOTES, 'UTF-8') ?>" <?= $activeModule === 'users' ? 'aria-current="page"' : '' ?>>
-                <span class="sidebar-link-icon" aria-hidden="true">03</span><span>Usuarios y cuentas</span>
+                <span class="sidebar-link-icon" aria-hidden="true">05</span><span>Usuarios y cuentas</span>
             </a>
         <?php endif; ?>
         <?php if ($d->moduleAccess->roles): ?>
             <a class="sidebar-link <?= $activeModule === 'roles' ? 'sidebar-link-active' : '' ?>" href="<?= htmlspecialchars(URL . 'admin/roles', ENT_QUOTES, 'UTF-8') ?>" <?= $activeModule === 'roles' ? 'aria-current="page"' : '' ?>>
-                <span class="sidebar-link-icon" aria-hidden="true">04</span><span>Roles y permisos</span>
+                <span class="sidebar-link-icon" aria-hidden="true">06</span><span>Roles y permisos</span>
             </a>
         <?php endif; ?>
     </nav>

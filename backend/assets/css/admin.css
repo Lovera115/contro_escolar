@@ -69,6 +69,8 @@ a { color: #1e40af; }
 .status-badge { display: inline-flex; border-radius: 999px; padding: .28rem .55rem; font-size: .7rem; font-weight: 750; }
 .status-active { background: #dcfce7; color: #166534; }
 .status-inactive { background: #ffe4e6; color: #9f1239; }
+.status-review { background: #fef3c7; color: #92400e; }
+.status-missing { background: #f1f5f9; color: #64748b; }
 .stack-form { display: grid; gap: .8rem; }
 .stack-form > label, .inline-form > label { display: grid; gap: .35rem; color: #334155; font-size: .77rem; font-weight: 700; }
 .stack-form input:not([type=checkbox]), .stack-form select, .inline-form input, .admin-table select { width: 100%; min-height: 2.45rem; padding: .55rem .65rem; border: 1px solid #cbd5e1; border-radius: .45rem; background: #fff; color: #0f172a; }
@@ -122,6 +124,59 @@ a { color: #1e40af; }
 .academic-roster-grid h3 { display: flex; align-items: center; gap: .5rem; font-size: 1rem; }
 .academic-enroll-form { max-width: 34rem; margin-bottom: 1rem; }
 .academic-remove-form { margin: .2rem 0; }
+.records-layout { display: grid; grid-template-columns: minmax(17rem, .72fr) minmax(0, 1.6fr); align-items: start; gap: 1rem; }
+.records-layout > .panel { margin-top: 0; }
+.records-student-panel { position: sticky; top: 1rem; }
+.records-search { display: flex; align-items: end; gap: .5rem; margin-bottom: .8rem; }
+.records-search label { display: grid; flex: 1; gap: .35rem; color: #334155; font-size: .74rem; font-weight: 700; }
+.records-search input, .records-upload-form input[type=file], .records-upload-form select, .records-reject-form input { width: 100%; min-width: 0; min-height: 2.4rem; padding: .5rem .6rem; border: 1px solid #cbd5e1; border-radius: .45rem; background: #fff; color: #0f172a; font-size: .78rem; }
+.records-student-list { display: grid; max-height: 65vh; gap: .45rem; overflow: auto; }
+.records-student-card { display: grid; gap: .25rem; padding: .7rem; border: 1px solid #e2e8f0; border-radius: .6rem; color: #0f172a; text-decoration: none; }
+.records-student-card:hover, .records-student-card-active { border-color: #1e40af; background: #eff6ff; }
+.records-student-card strong { font-size: .8rem; }
+.records-student-card span, .records-student-card small { color: #64748b; font-size: .7rem; line-height: 1.4; }
+.records-main { min-width: 0; }
+.records-main .panel:first-child { margin-top: 0; }
+.records-heading { align-items: flex-start; }
+.records-heading h2 { margin: .2rem 0; }
+.records-heading .muted { margin: .2rem 0 0; }
+.records-upload-form { display: grid; grid-template-columns: minmax(10rem, .8fr) minmax(15rem, 1.3fr) auto; align-items: end; gap: .65rem; }
+.records-upload-form label { display: grid; gap: .35rem; color: #334155; font-size: .74rem; font-weight: 700; }
+.records-upload-form input[type=file] { padding: .34rem; }
+.records-private-note { margin: .65rem 0 0; font-size: .72rem; }
+.records-document-list { display: grid; gap: .7rem; }
+.records-document-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: .75rem; padding: .85rem; border: 1px solid #e2e8f0; border-radius: .7rem; }
+.records-document-info { display: flex; min-width: 0; gap: .7rem; }
+.records-document-info h3 { margin: 0; font-size: .85rem; }
+.records-document-info p { margin: .25rem 0 0; color: #64748b; font-size: .72rem; overflow-wrap: anywhere; }
+.records-document-icon { display: grid; width: 2rem; height: 2rem; flex: 0 0 auto; place-items: center; border-radius: .5rem; background: #eff6ff; color: #1e3a8a; font-size: .58rem; font-weight: 850; }
+.records-document-actions { display: flex; grid-column: 1 / -1; flex-wrap: wrap; justify-content: flex-end; gap: .5rem; }
+.records-reject-form { display: flex; max-width: 30rem; gap: .4rem; }
+.records-reject-form input { min-width: 10rem; }
+.records-audit-line { font-size: .67rem !important; }
+.records-observation { color: #9f1239 !important; }
+.records-empty-panel { min-height: 12rem; align-content: center; }
+.finance-filter { display: grid; grid-template-columns: minmax(12rem, 1fr) minmax(10rem, .55fr) auto auto; align-items: end; gap: .55rem; margin-bottom: .8rem; }
+.finance-filter label, .finance-account-form label, .finance-payment-form label { display: grid; gap: .35rem; color: #334155; font-size: .74rem; font-weight: 700; }
+.finance-filter input, .finance-filter select, .finance-account-form input, .finance-account-form select, .finance-payment-form input, .finance-payment-form select, .finance-payment-actions input { width: 100%; min-height: 2.4rem; padding: .5rem .6rem; border: 1px solid #cbd5e1; border-radius: .45rem; background: #fff; color: #0f172a; font-size: .78rem; }
+.finance-detail-heading { align-items: flex-start; }
+.finance-detail-heading h2 { margin: .2rem 0; }
+.finance-detail-heading .muted { margin: .25rem 0 0; }
+.finance-summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .65rem; margin: .8rem 0 1rem; }
+.finance-summary-grid article { display: grid; gap: .35rem; padding: .8rem; border: 1px solid #e2e8f0; border-radius: .65rem; background: #f8fafc; }
+.finance-summary-grid span { color: #64748b; font-size: .7rem; }
+.finance-summary-grid strong { color: #1e3a8a; font-size: 1.15rem; }
+.finance-account-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: end; gap: .65rem; padding-top: .9rem; border-top: 1px solid #e2e8f0; }
+.finance-account-form label small { color: #64748b; font-weight: 450; }
+.finance-payment-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: end; gap: .65rem; }
+.finance-notes-field { grid-column: span 2; }
+.finance-form-actions { display: flex; align-items: center; gap: .5rem; }
+.finance-payment-actions { min-width: 13rem; }
+.finance-payment-actions form { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .4rem; }
+.finance-payment-actions input { min-width: 8rem; min-height: 2rem; }
+.finance-payments-table td small { overflow-wrap: anywhere; }
+.finance-audit-note, .finance-empty .muted { font-size: .75rem; }
+.finance-empty { min-height: 10rem; align-content: center; }
 
 @media (max-width: 850px) {
     .app-layout { grid-template-columns: minmax(0, 1fr); gap: .5rem; }
@@ -135,6 +190,9 @@ a { color: #1e40af; }
     .admin-layout { grid-template-columns: minmax(0, 1fr); }
     .student-registry-layout { grid-template-columns: minmax(0, 1fr); }
     .academic-admin-grid { grid-template-columns: minmax(0, 1fr); }
+    .records-layout { grid-template-columns: minmax(0, 1fr); }
+    .records-student-panel { position: static; }
+    .records-student-list { max-height: 18rem; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); }
     .admin-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
@@ -146,5 +204,12 @@ a { color: #1e40af; }
     .admin-nav { grid-template-columns: minmax(0, 1fr); }
     .inline-form { grid-template-columns: minmax(0, 1fr); }
     .student-filter-form { grid-template-columns: minmax(0, 1fr); }
+    .records-upload-form { grid-template-columns: minmax(0, 1fr); }
+    .records-document-card { grid-template-columns: minmax(0, 1fr); }
+    .records-document-actions { justify-content: flex-start; }
+    .records-reject-form { width: 100%; max-width: none; }
+    .finance-filter, .finance-account-form, .finance-payment-form { grid-template-columns: minmax(0, 1fr); }
+    .finance-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .finance-notes-field { grid-column: auto; }
     .panel { padding: .85rem; }
 }

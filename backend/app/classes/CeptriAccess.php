@@ -78,6 +78,8 @@ final class CeptriAccess
             'roles' => self::can($user, 'admin-access'),
             'students' => self::can($user, 'students.manage'),
             'academic' => self::can($user, 'academic.assign'),
+            'records' => self::can($user, 'records.review'),
+            'finance' => self::can($user, 'finance.view'),
         ];
     }
 

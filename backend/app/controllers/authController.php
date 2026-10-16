@@ -125,6 +125,12 @@ class authController extends Controller implements ControllerInterface
         if (CeptriAccess::can($user, 'academic.assign')) {
             Redirect::to('academic');
         }
+        if (CeptriAccess::can($user, 'records.review')) {
+            Redirect::to('records');
+        }
+        if (CeptriAccess::can($user, 'finance.view')) {
+            Redirect::to('finance');
+        }
         if (CeptriAccess::can($user, 'students.manage')) {
             Redirect::to('students');
         }

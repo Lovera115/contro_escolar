@@ -1,6 +1,6 @@
 # Backend CEPTRI con Bee Framework
 
-Esta aplicación Bee Framework 1.5.8 es una base de migración aislada. El sistema HTML/JavaScript actual permanece en la raíz del repositorio; ya se migró el padrón e inscripción de alumnos, mientras que Finanzas, grupos, asignación académica y los demás módulos escolares siguen en la aplicación original.
+Esta aplicación Bee Framework 1.5.8 es una base de migración aislada. El sistema HTML/JavaScript actual permanece en la raíz del repositorio; ya se migraron el padrón, los grupos y asignaciones, la revisión de expedientes y Finanzas. El portal del alumno, el portal docente y los demás módulos escolares siguen en la aplicación original.
 
 ## Requisitos
 
@@ -47,7 +47,23 @@ Desde la raíz del repositorio:
 
    La migración requiere `APP_ENV=development`, es idempotente y agrega las materias base de las tres carreras. Los grupos, docentes y alumnos deben registrarse desde la interfaz; no se importan datos de demostración.
 
-7. Cuando estés listo para crear la cuenta administradora inicial, ejecuta el instalador interactivo desde la raíz. Pedirá usuario, correo, nombre y contraseña; la contraseña se escribe oculta y solo se almacena como hash:
+7. Crea el catálogo de requisitos y las tablas para revisión de expedientes digitales:
+
+   ```bash
+   php backend/bin/migrate-documents.php
+   ```
+
+   Esta migración requiere `APP_ENV=development` y es idempotente. Los archivos se almacenan fuera de las rutas públicas, en `backend/private/student-documents/`; solo cuentas con `records.review` pueden cargarlos, revisarlos o consultarlos. Se aceptan PDF, JPG y PNG, hasta 5 MB, sujetos a los límites PHP del servidor. Los archivos y sus versiones anteriores no se publican en Git.
+
+8. Crea las cuentas financieras cuatrimestrales y el registro de pagos:
+
+   ```bash
+   php backend/bin/migrate-finance.php
+   ```
+
+   Esta migración requiere `APP_ENV=development` y `DB_NAME=ceptri_dev`, es idempotente y crea una cuenta con estado `adeudo` por cada inscripción existente. Las cuotas se configuran individualmente en Finanzas para cada alumno y cuatrimestre; no se fija una tarifa global. El sistema conserva folios, referencias, importes, fechas, método de pago, correcciones, anulaciones y auditoría. Solo cuentas autorizadas con `finance.view` pueden consultar; las acciones de registro, edición, anulación y exportación también verifican sus permisos específicos.
+
+9. Cuando estés listo para crear la cuenta administradora inicial, ejecuta el instalador interactivo desde la raíz. Pedirá usuario, correo, nombre y contraseña; la contraseña se escribe oculta y solo se almacena como hash:
 
    ```bash
    php backend/bin/install-rbac.php
@@ -55,22 +71,22 @@ Desde la raíz del repositorio:
 
    El instalador no reemplaza usuarios existentes. El acceso inicial se asigna al rol Administrador, que conserva acceso global desde el servidor.
 
-8. Desde `backend/`, inicia el servidor local:
+10. Desde `backend/`, inicia el servidor local. Los valores `-d` habilitan el máximo de carga de 5 MB para la prueba:
 
    ```bash
    cd backend
-   php -S 127.0.0.1:8081 router.php
+   php -d upload_max_filesize=5M -d post_max_size=6M -S 127.0.0.1:8081 router.php
    ```
 
-9. Abre `http://127.0.0.1:8081/`.
+11. Abre `http://127.0.0.1:8081/`.
 
-10. Para probar inicio/cierre de sesión y permisos HTTP, con el servidor activo ejecuta desde la raíz:
+12. Para probar inicio/cierre de sesión y permisos HTTP, con el servidor activo ejecuta desde la raíz:
 
    ```bash
    php backend/bin/smoke-auth.php
    ```
 
-   El test crea alumnos, grupos, cuentas y roles aleatorios, prueba las pantallas de administración y Control Escolar, genera el reporte PDF y elimina los datos temporales al finalizar.
+   El test crea alumnos, grupos, cuentas, roles y documentos aleatorios, prueba las pantallas de administración, Control Escolar y Finanzas, registra y corrige pagos, prueba anulaciones y estados de cuenta, descarga los historiales y reportes PDF y elimina los datos temporales al finalizar.
 
 El archivo `.env` y `app/vendor/` están excluidos de Git. Nunca agregues credenciales al repositorio.
 
@@ -93,6 +109,9 @@ El manifiesto de Composer excluye `verot/class.upload.php`, que Composer bloquea
 - Padrón escolar: expedientes de alumnos e inscripciones por cuatrimestre con historial, búsqueda, validación de matrícula y estados académicos; requiere `students.manage`.
 - Grupos académicos: grupos por carrera y cuatrimestre, materias impartidas, asignación de docentes activos y reinscripción de alumnos a materias; requiere `academic.assign`.
 - Reportes de grupo descargables en PDF con docentes, materias y alumnos inscritos.
+- Revisión de expedientes digitales: cinco requisitos, carga de PDF/JPG/PNG en almacenamiento privado, nuevas versiones, aprobación o rechazo con motivo y auditoría de carga/revisión; requiere `records.review`.
+- Finanzas: estado de cuenta por inscripción y cuatrimestre, adeudo inicial, cuota editable individualmente, registro de pagos con folio y referencia, edición y anulación auditadas y descarga del historial de pagos por alumno en PDF; requiere `finance.view` y permisos específicos por operación.
 - El padrón no crea todavía cuentas de acceso al portal ni importa los datos de demostración locales del sistema anterior.
-- Flujos HTTP administrativos, RBAC, CSRF, menú por permisos, inscripción duplicada, asignaciones y reporte PDF: cubiertos por `php backend/bin/smoke-auth.php`.
-- Revisión de documentos, portal del alumno y módulo de Finanzas: aún no se han migrado.
+- Los registros financieros de la aplicación anterior son datos de demostración en JavaScript y no se importan. Los pagos nuevos se guardan en MariaDB.
+- Flujos HTTP administrativos, RBAC, CSRF, menú por permisos, inscripción duplicada, revisión documental, acceso privado, cuentas y pagos financieros, asignaciones y reportes PDF: cubiertos por `php backend/bin/smoke-auth.php`.
+- Portal del alumno y portal docente: aún no se han migrado.

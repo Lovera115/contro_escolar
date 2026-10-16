@@ -27,6 +27,8 @@ class adminController extends Controller implements ControllerInterface
             'moduleAccess' => CeptriAccess::moduleAccess($user),
             'canManageStudents' => CeptriAccess::can($user, 'students.manage'),
             'canManageAcademic' => CeptriAccess::can($user, 'academic.assign'),
+            'canReviewRecords' => CeptriAccess::can($user, 'records.review'),
+            'canViewFinance' => CeptriAccess::can($user, 'finance.view'),
             'csrfToken' => CSRF_TOKEN,
             'summary' => $summary,
         ]);
